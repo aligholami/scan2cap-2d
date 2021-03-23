@@ -1,5 +1,7 @@
-from lib.conf import get_config
+import torch
 import argparse
+from lib.conf import get_config, get_samples
+from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
 
 
 def parse_arg():
@@ -14,6 +16,8 @@ def parse_arg():
 
 def main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
+    sample_list = get_samples(config=run_config)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # for the given dataset, viewpoint and box mode
     # performs the following:
@@ -21,6 +25,35 @@ def main(exp_type, dataset, viewpoint, box):
     # 2. Extract global ResNet101 features
     # 3. Extract bounding boxes from aggregations and instance masks
     # 4. Extract bounding box features
+
+    # 2. Run on CPU
+    export_bbox_pickle(
+        AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
+        SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
+        INSTANCE_MASK_PATH=CONF.PATH.INSTANCE_MASK,
+        SAMPLE_LIST=sample_list,
+        WRITE_PICKLES_PATH=run_config.PATH.BOX
+    )
+
+    # 3. Run on Device
+    export_image_features(
+        IMAGE=run_config.PATH.IMAGE,
+        IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
+        BOX=None,
+        BOX_FEAT=None,
+        SAMPLE_LIST=sample_list,
+        DEVICE=device
+    )
+
+    # 4. Run on Device
+    export_bbox_features(
+        IMAGE=run_config.PATH.IMAGE,
+        IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
+        BOX=run_config.PATH.BOX,
+        BOX_FEAT=run_config.PATH.BOX_FEAT,
+        SAMPLE_LIST=sample_list,
+        DEVICE=device
+    )
 
 
 if __name__ == '__main__':
