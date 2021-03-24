@@ -1,19 +1,17 @@
 import torch
 import argparse
-from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
-import sys
-sys.path.insert(0, '../')
 from lib.conf import get_config, get_samples
+from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
 
 def parse_arg():
     ap = argparse.ArgumentParser()
-    ap.add_argument('exp_type', default='nonretrieval', help='retrieval or nonretrieval')
-    ap.add_argument('dataset', default='scanrefer', help='scanrefer or referit')
-    ap.add_argument('viewpoint', default='annotated', help='annotated, estimated or topdown')
-    ap.add_argument('box', default='oracle', help='oracle, mrcnn or votenet')
+    ap.add_argument('--exp_type', default='nonretrieval', help='retrieval or nonretrieval')
+    ap.add_argument('--dataset', default='scanrefer', help='scanrefer or referit')
+    ap.add_argument('--viewpoint', default='annotated', help='annotated, estimated or topdown')
+    ap.add_argument('--box', default='oracle', help='oracle, mrcnn or votenet')
 
     return ap.parse_args()
-
+                                
 
 def main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
@@ -31,7 +29,7 @@ def main(exp_type, dataset, viewpoint, box):
     export_bbox_pickle(
         AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
         SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
-        INSTANCE_MASK_PATH=CONF.PATH.INSTANCE_MASK,
+        INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,
         SAMPLE_LIST=sample_list,
         SCENE_LIST=scene_list,
         WRITE_PICKLES_PATH=run_config.PATH.BOX

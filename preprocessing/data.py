@@ -22,6 +22,7 @@ class FrameData(Dataset):
             with open(box_path, 'rb') as bpf:
                 self.box = pickle.load(bpf)
 
+                print(list(self.box.keys())[:10])
     def __len__(self):
         return len(self.input_list)
 
@@ -31,7 +32,7 @@ class FrameData(Dataset):
         scene_id = input_item['scene_id']
 
         frame_tensor, ow, oh, nw, nh = self.load_image(
-            image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(scene_id, sample_id))
+            image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(sample_id))
         )
 
         # load bbox info
@@ -50,8 +51,8 @@ class FrameData(Dataset):
                 boxes_object_ids[i] = torch.IntTensor([object_id])
 
             ret = {
-                'failed': False,
-                'image_tensor': frame_tensor,
+                # 'failed': False,
+                'frame_tensor': frame_tensor,
                 'bbox_info': boxes,
                 'bbox_id': boxes_object_ids,
                 'sample_id': sample_id
@@ -60,8 +61,8 @@ class FrameData(Dataset):
         else:
 
             ret = {
-                'failed': False,
-                'image_tensor': frame_tensor,
+                # 'use': True,
+                'frame_tensor': frame_tensor,
                 'bbox_info': None,
                 'bbox_id': None,
                 'sample_id': sample_id
@@ -90,12 +91,12 @@ class FrameData(Dataset):
         return [x_min, y_min, x_max, y_max]
 
     def load_image(self, image_path):
-
-        resized = Image.open(image_path).resize((224, 224))
+        new_width, new_height = 320, 240
+        old_image = Image.open(image_path)
+        old_width, old_height = old_image.size
+        resized = old_image.resize((new_width, new_height))
         rgbed = resized.convert('RGB')
         frame_tensor = torch.from_numpy(np.asarray(rgbed).astype(np.float32)).permute(2, 0, 1)
-        old_width, old_height = rgbed.size
-        new_width, new_height = 320, 240
 
         if self.transforms:
             frame_tensor = self.transforms(frame_tensor / 255.0)
@@ -103,7 +104,7 @@ class FrameData(Dataset):
         return frame_tensor, old_width, old_height, new_width, new_height
 
     def collate_fn(self, data):
-        data = list(filter(lambda x: x['use'], data))
+        # data = list(filter(lambda x: x['use'], data))
         tensor_list = [d['frame_tensor'] for d in data]
         bbox_list = [d['bbox_info'] for d in data]
         bbox_ids = [d['bbox_id'] for d in data]

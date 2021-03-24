@@ -1,19 +1,22 @@
+import torch
 import torch.nn as nn
 from torchvision import models
 
 
 class ResNet101NoFC(nn.Module):
-    def __init__(self, pretrained, progress, device):
+    def __init__(self, pretrained, progress, device, mode):
         super(ResNet101NoFC, self).__init__()
         image_modules = list(models.resnet101(pretrained=pretrained, progress=progress).children())[
                         :-1]  # all layer expect last layer
         self.resnet = nn.Sequential(*image_modules)
         self.device = device
+        self.mode = mode
 
-    def forward(self, image, boxes, object_ids, mode):
-        if mode == 'bbox2feat':
+    def forward(self, image, boxes, object_ids):
+        image = torch.stack(image).to(self.device)
+        if self.mode == 'bbox2feat':
             return self.forward_image_boxes(image=image, boxes=boxes, object_ids=object_ids)
-        if mode == 'frame2feat':
+        if self.mode == 'frame2feat':
             return self.forward_image(image=image)
 
     def forward_image_boxes(self, image, boxes, object_ids):
@@ -29,7 +32,11 @@ class ResNet101NoFC(nn.Module):
                 y_max = int(boxes[i][j][3].item())
                 cropped_tensor = image[i][:, y_min:y_max, x_min:x_max]
                 cropped_tensor = cropped_tensor.unsqueeze(0)
-                f = self.resnet(cropped_tensor.to(self.device))
+                try:
+                    f = self.resnet(cropped_tensor.to(self.device))
+                except RuntimeError:
+                    print("target box: ",boxes[i][j])
+                    print("cropped: ", cropped_tensor.shape)
                 bbox_object_id = int(object_ids[i][j].item())
                 frame_object_features[str(bbox_object_id)] = f
 

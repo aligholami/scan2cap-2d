@@ -9,10 +9,10 @@ CONF.PATH.CODE_ROOT = '/local-scratch/scan2cap_codebase'
 CONF.PATH.OUTPUT_ROOT = os.path.join(CONF.PATH.CODE_ROOT, "outputs")
 CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
-CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANNET_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
+CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANS_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
-CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'scanrefer_train.json')
-CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'scanrefer_val.json')
+CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
+CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
 
 
 def adapt_sample_keys(sample_list, key_type):
