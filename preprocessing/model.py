@@ -1,4 +1,5 @@
-import torch
+import torch.nn as nn
+from torchvision import models
 
 
 class ResNet101NoFC(nn.Module):
@@ -13,7 +14,7 @@ class ResNet101NoFC(nn.Module):
         if mode == 'bbox2feat':
             return self.forward_image_boxes(image=image, boxes=boxes, object_ids=object_ids)
         if mode == 'frame2feat':
-            return self.resnet(image=image)
+            return self.forward_image(image=image)
 
     def forward_image_boxes(self, image, boxes, object_ids):
         batch_size = len(image)

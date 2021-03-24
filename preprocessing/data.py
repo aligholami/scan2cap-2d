@@ -1,7 +1,11 @@
+import os
 import torch
 import pickle
+import math
 import numpy as np
 from torch.utils.data import Dataset
+from PIL import Image
+from tqdm import tqdm
 
 
 class FrameData(Dataset):
@@ -22,23 +26,23 @@ class FrameData(Dataset):
         target_object_id = input_item['object_id']
         ann_id = input_item['ann_id']
 
-        frame_tensor = self.load_image(
-            image_path=self.frames_path.format(f['scene_id'], f['scene_id'], str(f['object_id']), str(f['ann_id'])))
+        frame_tensor, ow, oh, nw, nh = self.load_image(
+            image_path=os.path.join(self.frames_path, scene_id, '{}-{}_{}.png'.format(scene_id, target_object_id, ann_id))
+        )
 
         # load bbox info
-        with open(BBOX_PATH.format(scene_id, scene_id, target_object_id, ann_id), "rb") as f:
+        with open(os.path.join(self.box_path, scene_id, '{}-{}_{}.png'.format(scene_id, target_object_id, ann_id)), "rb") as f:
             bbox_info = pickle.load(f)
             boxes = torch.zeros(len(bbox_info), 4).float()
             boxes_object_ids = torch.zeros(len(bbox_info)).int()
             for i, info in enumerate(bbox_info):
-                scale_x = new_width / old_width
-                scale_y = new_height / old_height
+                scale_x = nw / ow
+                scale_y = nh / oh
                 xyxy_bbox_scaled = [math.floor(info["bbox"][0] * scale_x), math.floor(info["bbox"][1] * scale_y),
                                     math.ceil(info["bbox"][2] * scale_x), math.ceil(info["bbox"][3] * scale_y)]
-                xyxy_bbox_validated = self.validate_bbox(xyxy_bbox_scaled, new_width, new_height)
+                xyxy_bbox_validated = self.validate_bbox(xyxy_bbox_scaled, nw, nh)
                 boxes[i] = torch.FloatTensor(xyxy_bbox_validated)
                 object_id = info['object_id']
-
                 boxes_object_ids[i] = torch.IntTensor([object_id])
 
         ret = {
@@ -71,24 +75,23 @@ class FrameData(Dataset):
             elif y_max < height - fix:
                 y_max += fix
 
-        xyxy_updated = [x_min, y_min, x_max, y_max]
-        return xyxy_updated
+        return [x_min, y_min, x_max, y_max]
 
     def load_image(self, image_path):
 
         resized = Image.open(image_path).resize((224, 224))
         rgbed = resized.convert('RGB')
         frame_tensor = torch.from_numpy(np.asarray(rgbed).astype(np.float32)).permute(2, 0, 1)
+        old_width, old_height = rgbed.size
+        new_width, new_height = 320, 240
 
         if self.transforms:
             frame_tensor = self.transforms(frame_tensor / 255.0)
 
-        return frame_tensor
+        return frame_tensor, old_width, old_height, new_width, new_height
 
-
-    def collate_frame_box(self, data):
-
-        data = list(filter(lambda x: x['use'] == True, data))
+    def collate_fn(self, data):
+        data = list(filter(lambda x: x['use'], data))
         tensor_list = [d['frame_tensor'] for d in data]
         bbox_list = [d['bbox_info'] for d in data]
         bbox_ids = [d['bbox_id'] for d in data]
@@ -104,17 +107,18 @@ class FrameData(Dataset):
             batches is a list of dict. Each dict has a batch of results
             in it.
         """
+        target_npy = self.frame_feature_path
+        aggregation = {}
+        target_dir = os.path.dirname(target_npy)
+        os.makedirs(target_dir, exist_ok=True)
 
         for batch in tqdm(batches):
             batch_size = len(batch['scene_id'])
             for i in range(batch_size):
-                write_dir = self.write_features_path.format(str(batch['scene_id'][i]))
-                if not os.path.isdir(write_dir):
-                    os.makedirs(write_dir)
-                lpath = os.path.join(write_dir,
-                                     str(batch['scene_id'][i]) + '-' + batch['object_id'][i] + '_' + batch['ann_id'][
-                                         i] + '.npy')
-                np.save(lpath, batch['frame_features'][i])
+                k = '{}-{}_{}'.format(batch['scene_id'][i], batch['object_id'][i], batch['ann_id'][i])
+                aggregation[k] = batch['frame_features'][i]
+
+        np.save(target_npy, aggregation)
 
     def write_box_features(self, batches):
         """
@@ -122,20 +126,20 @@ class FrameData(Dataset):
             batches is a list of dict. Each dict has a batch of results
             in it.
         """
+        target_npy = self.box_feature_path
+        aggregation = {}
+        target_dir = os.path.dirname(target_npy)
+        os.makedirs(target_dir, exist_ok=True)
+
         for batch in tqdm(batches):
             batch_size = len(batch['scene_id'])
-            # for each frame in batch
             for i in range(batch_size):
-                # for each bbox in frame
                 frame_object_features = batch['proposals_features'][i]
                 scene_id = batch['scene_id'][i]
                 target_object_id = batch['object_id'][i]
                 ann_id = batch['ann_id'][i]
                 for object_id, feature in frame_object_features.items():
-                    # save in the following format (frame_idx = scene_id-target_object_id_annid).object_id
-                    write_dir = self.args.features_dir.format(str(batch['scene_id'][i]))
-                    if not os.path.isdir(write_dir):
-                        os.makedirs(write_dir)
-                    dump_name = '{}-{}_{}.{}.npy'.format(scene_id, target_object_id, ann_id, object_id)
-                    lpath = os.path.join(write_dir, dump_name)
-                    np.save(lpath, feature.squeeze().cpu().numpy())
+                    k = '{}-{}_{}.{}'.format(scene_id, target_object_id, ann_id, object_id)
+                    aggregation[k] = feature.squeeze().cpu().numpy()
+
+        np.save(target_npy, aggregation)

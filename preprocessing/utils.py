@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 from preprocessing.data import FrameData
 from preprocessing.model import ResNet101NoFC
 
+
 def get_id2name_file(AGGR_JSON, SCENE_LIST):
     print("getting id2name...")
     id2name = {}
@@ -65,15 +66,16 @@ def export_bbox_pickle(
     pickle_dir = os.path.dirname(WRITE_PICKLES_PATH)
     scattered_pickles_dir = os.path.join(pickle_dir, 'temp')
     os.makedirs(scattered_pickles_dir, exist_ok=True)
-    scattered_pickle_file = os.path.join(scattered_pickles_dir, '{}/{}-{}_{}.p')
+
     print("exporting image bounding boxes...")
 
+    aggregation = {}
     for gg in tqdm(SAMPLE_LIST):
         scene_id = gg['scene_id']
         object_id = gg['object_id']
         ann_id = gg['ann_id']
         try:
-            label_img = np.array(Image.open(INSTANCE_MASK_PATH.format(scene_id, scene_id, object_id, ann_id)))
+            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}-{}_{}.png'.format(scene_id, object_id, ann_id))))
         except FileNotFoundError as fnfe:
             print(fnfe)
             continue
@@ -98,11 +100,18 @@ def export_bbox_pickle(
                 }
             )
 
-        os.makedirs(os.path.dirname(scattered_pickle_file.format(scene_id)), exist_ok=True)
-        with open(scattered_pickle_file.format(scene_id, scene_id, object_id, ann_id), "wb") as f:
-            pickle.dump(bbox_info, f)
+            sample_bbox_info = {
+                '{}-{}_{}'.format(scene_id, object_id, ann_id): bbox_info
+            }
+            try:
+                aggregation[scene_id].append(sample_bbox_info)
+            except KeyError:
+                aggregation[scene_id] = [sample_bbox_info]
 
-    print("Temporary boxes created.")
+    with open(WRITE_PICKLES_PATH, "wb") as f:
+        pickle.dump(aggregation, f)
+
+    print("Created boxes.")
 
 
 def export_image_features(
@@ -129,27 +138,25 @@ def export_image_features(
         'num_workers': 6
     }
 
-    data_loader = DataLoader(fd_train, collate_fn=fd_train.collate, **conf)
+    data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
     model = ResNet101NoFC(pretrained=True, progress=True).to(DEVICE)
     model.eval()
 
     extracted_batches = []
     print("Frame feature extraction started.")
 
-    for split, ld in data_loader.items():
-        print("Processing {} split.".format(split))
-        for i, f in enumerate(tqdm(ld)):
-            with torch.no_grad():
-                tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
-                frame_features = model(tensor_list).to('cuda')
-                extracted_batches.append(
-                    {
-                        'frame_features': frame_features.detach().cpu(),
-                        'scene_id': scene_list,
-                        'object_id': object_list,
-                        'ann_id': ann_list
-                    }
-                )
+    for i, f in enumerate(tqdm(data_loader)):
+        with torch.no_grad():
+            tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
+            frame_features = model(tensor_list).to('cuda')
+            extracted_batches.append(
+                {
+                    'frame_features': frame_features.detach().cpu(),
+                    'scene_id': scene_list,
+                    'object_id': object_list,
+                    'ann_id': ann_list
+                }
+            )
 
     print("Saving extracted features.")
     fd_train.write_frame_features(extracted_batches)
@@ -182,28 +189,26 @@ def export_bbox_features(
         'num_workers': 6
     }
 
-    data_loader = DataLoader(fd_train, collate_fn=fd_train.coll, **conf)
+    data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
     model = ResNet101NoFC(pretrained=True, progress=True).to(DEVICE)
     model.eval()
 
     extracted_batches = []
     print("Frame feature extraction started.")
 
-    for split, ld in data_loader.items():
-        print("Processing {} split.".format(split))
-        for i, f in enumerate(tqdm(ld)):
-            tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
+    for i, f in enumerate(tqdm(data_loader)):
+        tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
 
-            with torch.no_grad():
-                batch_feats = model(tensor_list, bbox_list, bbox_ids)
-                extracted_batches.append(
-                    {
-                        'proposals_features': batch_feats,
-                        'scene_id': scene_list,
-                        'object_id': object_list,
-                        'ann_id': ann_list
-                    }
-                )
+        with torch.no_grad():
+            batch_feats = model(tensor_list, bbox_list, bbox_ids)
+            extracted_batches.append(
+                {
+                    'proposals_features': batch_feats,
+                    'scene_id': scene_list,
+                    'object_id': object_list,
+                    'ann_id': ann_list
+                }
+            )
 
     print("Saving extracted features.")
     fd_train.write_box_features(extracted_batches)
