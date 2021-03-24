@@ -2,7 +2,7 @@ import torch
 import argparse
 from lib.conf import get_config, get_samples
 from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
-
+import sys
 
 def parse_arg():
     ap = argparse.ArgumentParser()
