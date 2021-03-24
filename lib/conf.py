@@ -4,7 +4,7 @@ from easydict import EasyDict
 
 CONF = EasyDict()
 CONF.PATH = EasyDict()
-CONF.PATH.DATA_ROOT = '/local-scratch/scan2cap_extracted'
+CONF.PATH.DATA_ROOT = '/local-scratch/code/scan2cap_extracted'
 CONF.PATH.CODE_ROOT = '/local-scratch/scan2cap_codebase'
 CONF.PATH.OUTPUT_ROOT = os.path.join(CONF.PATH.CODE_ROOT, "outputs")
 CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
@@ -93,9 +93,9 @@ def get_config(exp_type, dataset, viewpoint, box):
 
     if selected_dataset == 'scanrefer':
         if selected_viewpoint == 'annotated':
-            CONF.PATH.IMAGE = os.path.join(data_root, 'annotated-based/renders/')
+            CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
             CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'annotated-based/resnet101_features')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'annotated-based/instance-masks')
+            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks')
             CONF.PATH.BOX = os.path.join(data_root, 'annotated-based/box/box.p')
             CONF.PATH.BOX_FEAT = os.path.join(data_root, 'annotated-based/box_feat/box_feat.npy')
             CONF.TYPES.KEY_TYPE = 'kkk'

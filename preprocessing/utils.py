@@ -75,7 +75,7 @@ def export_bbox_pickle(
         scene_id = gg['scene_id']
 
         try:
-            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.png'.format(sample_id))))
+            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.objectId.encoded.png'.format(sample_id))))
         except FileNotFoundError as fnfe:
             print(fnfe)
             continue
