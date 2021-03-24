@@ -64,8 +64,7 @@ def export_bbox_pickle(
     id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
     pickle_dir = os.path.dirname(WRITE_PICKLES_PATH)
-    scattered_pickles_dir = os.path.join(pickle_dir, 'temp')
-    os.makedirs(scattered_pickles_dir, exist_ok=True)
+    os.makedirs(pickle_dir, exist_ok=True)
 
     print("exporting image bounding boxes...")
 
@@ -100,13 +99,7 @@ def export_bbox_pickle(
                 }
             )
 
-            sample_bbox_info = {
-                '{}'.format(sample_id): bbox_info
-            }
-            try:
-                aggregation[scene_id].append(sample_bbox_info)
-            except KeyError:
-                aggregation[scene_id] = [sample_bbox_info]
+        aggregation[sample_id] = bbox_info
 
     with open(WRITE_PICKLES_PATH, "wb") as f:
         pickle.dump(aggregation, f)
@@ -134,12 +127,12 @@ def export_image_features(
     )
 
     conf = {
-        'batch_size': 16,
+        'batch_size': 8,
         'num_workers': 6
     }
 
     data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
-    model = ResNet101NoFC(pretrained=True, progress=True).to(DEVICE)
+    model = ResNet101NoFC(pretrained=False, progress=False, device=DEVICE, mode='frame2feat').to(DEVICE)
     model.eval()
 
     extracted_batches = []
@@ -148,7 +141,7 @@ def export_image_features(
     for i, f in enumerate(tqdm(data_loader)):
         with torch.no_grad():
             tensor_list, bbox_list, bbox_ids, sample_id_list = f
-            frame_features = model(tensor_list).to('cuda')
+            frame_features = model(tensor_list, None, None).to('cuda')
             extracted_batches.append(
                 {
                     'frame_features': frame_features.detach().cpu(),
@@ -183,16 +176,16 @@ def export_bbox_features(
     )
 
     conf = {
-        'batch_size': 128,
+        'batch_size': 32,
         'num_workers': 6
     }
 
     data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
-    model = ResNet101NoFC(pretrained=True, progress=True).to(DEVICE)
+    model = ResNet101NoFC(pretrained=False, progress=False, device=DEVICE, mode='bbox2feat').to(DEVICE)
     model.eval()
 
     extracted_batches = []
-    print("Frame feature extraction started.")
+    print("Box feature extraction started.")
 
     for i, f in enumerate(tqdm(data_loader)):
         tensor_list, bbox_list, bbox_ids, sample_id_list = f
