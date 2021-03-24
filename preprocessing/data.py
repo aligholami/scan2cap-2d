@@ -1,16 +1,15 @@
 import torch
+import pickle
 import numpy as np
 from torch.utils.data import Dataset
 
 
 class FrameData(Dataset):
-    def __init__(self, frame_path, frame_feature_path, box_path, box_feature_path, input_list, transforms, split):
+    def __init__(self, frame_path, frame_feature_path, box_path, box_feature_path, input_list, transforms):
         self.frames_path = frame_path
         self.frame_feature_path = frame_feature_path
         self.box_path = box_path
         self.box_feature_path = box_feature_path
-        self.split = split
-        self.scene_list_dir = args.scene_list_dir
         self.input_list = input_list
         self.transforms = transforms
 
@@ -86,12 +85,10 @@ class FrameData(Dataset):
 
         return frame_tensor
 
-    def collate_frame(self, data):
-        data = list(filter(lambda x: x['use'] == True, data))
-        return data_tools.dataloader.default_collate(data)
 
     def collate_frame_box(self, data):
 
+        data = list(filter(lambda x: x['use'] == True, data))
         tensor_list = [d['frame_tensor'] for d in data]
         bbox_list = [d['bbox_info'] for d in data]
         bbox_ids = [d['bbox_id'] for d in data]

@@ -1,14 +1,17 @@
 import os
 import time
 import json
+import torch
 import pickle
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
+from torchvision import transforms
+from torch.utils.data import DataLoader
 from preprocessing.data import FrameData
+from preprocessing.model import ResNet101NoFC
 
-
-def get_id2name_file(AGGR_JSON):
+def get_id2name_file(AGGR_JSON, SCENE_LIST):
     print("getting id2name...")
     id2name = {}
     item_ids = []
@@ -22,6 +25,7 @@ def get_id2name_file(AGGR_JSON):
             id2name[scene_id][int(item["id"])] = item["label"]
 
     return id2name
+
 
 def get_label_info(SCANNET_V2_TSV):
     label2class = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, 'door': 5,
@@ -47,16 +51,23 @@ def get_label_info(SCANNET_V2_TSV):
 
     return raw2label, label2class
 
+
 def export_bbox_pickle(
         AGGR_JSON_PATH,
         SCANNET_V2_TSV,
         INSTANCE_MASK_PATH,
         SAMPLE_LIST,
+        SCENE_LIST,
         WRITE_PICKLES_PATH
 ):
-    id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH)
+    id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
+    pickle_dir = os.path.dirname(WRITE_PICKLES_PATH)
+    scattered_pickles_dir = os.path.join(pickle_dir, 'temp')
+    os.makedirs(scattered_pickles_dir, exist_ok=True)
+    scattered_pickle_file = os.path.join(scattered_pickles_dir, '{}/{}-{}_{}.p')
     print("exporting image bounding boxes...")
+
     for gg in tqdm(SAMPLE_LIST):
         scene_id = gg['scene_id']
         object_id = gg['object_id']
@@ -87,11 +98,11 @@ def export_bbox_pickle(
                 }
             )
 
-        os.makedirs(OUTPUT_ROOT.format(scene_id), exist_ok=True)
-        with open(WRITE_PICKLES_PATH.format(scene_id, scene_id, object_id, ann_id), "wb") as f:
+        os.makedirs(os.path.dirname(scattered_pickle_file.format(scene_id)), exist_ok=True)
+        with open(scattered_pickle_file.format(scene_id, scene_id, object_id, ann_id), "wb") as f:
             pickle.dump(bbox_info, f)
 
-    print("done!")
+    print("Temporary boxes created.")
 
 
 def export_image_features(
@@ -105,7 +116,7 @@ def export_image_features(
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     fd_train = FrameData(
-        frames_path=IMAGE,
+        frame_path=IMAGE,
         frame_feature_path=IMAGE_FEAT,
         box_path=BOX,
         box_feature_path=BOX_FEAT,
@@ -171,7 +182,7 @@ def export_bbox_features(
         'num_workers': 6
     }
 
-    data_loader = DataLoader(fd_train, collate_fn=fd_train.collate, **conf)
+    data_loader = DataLoader(fd_train, collate_fn=fd_train.coll, **conf)
     model = ResNet101NoFC(pretrained=True, progress=True).to(DEVICE)
     model.eval()
 

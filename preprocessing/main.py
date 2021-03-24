@@ -16,7 +16,7 @@ def parse_arg():
 
 def main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
-    sample_list = get_samples(config=run_config)
+    sample_list, scene_list = get_samples(mode='all')
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # for the given dataset, viewpoint and box mode
@@ -32,6 +32,7 @@ def main(exp_type, dataset, viewpoint, box):
         SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
         INSTANCE_MASK_PATH=CONF.PATH.INSTANCE_MASK,
         SAMPLE_LIST=sample_list,
+        SCENE_LIST=scene_list,
         WRITE_PICKLES_PATH=run_config.PATH.BOX
     )
 

@@ -1,4 +1,5 @@
 import os
+import json
 from easydict import EasyDict
 
 CONF = EasyDict()
@@ -10,19 +11,31 @@ CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
 CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANNET_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
+CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'scanrefer_train.json')
+CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'scanrefer_val.json')
 
 
-# TODO: Here.
-def get_samples(config):
-    self.scene_list = [scene_id for scene_id in os.listdir(self.args.scene_list_dir) if 'scene' in scene_id]
+def get_samples(mode):
+    assert mode in ['train', 'val', 'all']
+    sample_list = []
+    scene_list = []
+    if mode == 'train':
+        t = json.load(open(CONF.PATH.SCANREFER_TRAIN))
+        sample_list = t
+        scene_list = list(set([item['scene_id'] for item in sample_list]))
 
-    input_list = []
-    for scene_id in self.scene_list:
-        _ = [input_list.append({'scene_id': scene_id, 'object_id': f.split('-')[1].split('_')[0],
-                                'ann_id': f.split('-')[1].split('_')[1].strip('.png')}) for f in
-             os.listdir(os.path.join(self.scene_list_dir, scene_id)) if '.png' in f and 'thumb' not in f]
+    if mode == 'val':
+        v = json.load(open(CONF.PATH.SCANREFER_VAL))
+        sample_list = v
+        scene_list = list(set([item['scene_id'] for item in sample_list]))
 
-    return input_list
+    if mode == 'all':
+        t = json.load(open(CONF.PATH.SCANREFER_TRAIN))
+        v = json.load(open(CONF.PATH.SCANREFER_VAL))
+        sample_list = t + v
+        scene_list = list(set([item['scene_id'] for item in sample_list]))
+
+    return sample_list, scene_list
 
 
 def get_config(exp_type, dataset, viewpoint, box):
