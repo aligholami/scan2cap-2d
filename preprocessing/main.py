@@ -1,8 +1,8 @@
 import torch
 import argparse
-from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
 import sys
 sys.path.insert(0, '../')
+from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
 from lib.conf import get_config, get_samples
 
 def parse_arg():
