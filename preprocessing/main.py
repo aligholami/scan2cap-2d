@@ -16,7 +16,7 @@ def parse_arg():
 
 def main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
-    sample_list, scene_list = get_samples(mode='all')
+    sample_list, scene_list = get_samples(mode='all', key_type=run_config.TYPES.KEY_TYPE)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # for the given dataset, viewpoint and box mode
@@ -55,6 +55,8 @@ def main(exp_type, dataset, viewpoint, box):
         SAMPLE_LIST=sample_list,
         DEVICE=device
     )
+
+    # 5.
 
 
 if __name__ == '__main__':

@@ -17,22 +17,26 @@ class FrameData(Dataset):
         self.input_list = input_list
         self.transforms = transforms
 
+        self.box = None
+        if box_path is not None:
+            with open(box_path, 'rb') as bpf:
+                self.box = pickle.load(bpf)
+
     def __len__(self):
         return len(self.input_list)
 
     def __getitem__(self, idx):
         input_item = self.input_list[idx]
+        sample_id = input_item['sample_id']
         scene_id = input_item['scene_id']
-        target_object_id = input_item['object_id']
-        ann_id = input_item['ann_id']
 
         frame_tensor, ow, oh, nw, nh = self.load_image(
-            image_path=os.path.join(self.frames_path, scene_id, '{}-{}_{}.png'.format(scene_id, target_object_id, ann_id))
+            image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(scene_id, sample_id))
         )
 
         # load bbox info
-        with open(os.path.join(self.box_path, scene_id, '{}-{}_{}.png'.format(scene_id, target_object_id, ann_id)), "rb") as f:
-            bbox_info = pickle.load(f)
+        if self.box is not None:
+            bbox_info = self.box[sample_id]
             boxes = torch.zeros(len(bbox_info), 4).float()
             boxes_object_ids = torch.zeros(len(bbox_info)).int()
             for i, info in enumerate(bbox_info):
@@ -45,15 +49,23 @@ class FrameData(Dataset):
                 object_id = info['object_id']
                 boxes_object_ids[i] = torch.IntTensor([object_id])
 
-        ret = {
-            'failed': False,
-            'image_tensor': frame_tensor,
-            'bbox_info': boxes,
-            'bbox_id': boxes_object_ids,
-            'scene_id': scene_id,
-            'object_id': target_object_id,
-            'ann_id': ann_id
-        }
+            ret = {
+                'failed': False,
+                'image_tensor': frame_tensor,
+                'bbox_info': boxes,
+                'bbox_id': boxes_object_ids,
+                'sample_id': sample_id
+            }
+
+        else:
+
+            ret = {
+                'failed': False,
+                'image_tensor': frame_tensor,
+                'bbox_info': None,
+                'bbox_id': None,
+                'sample_id': sample_id
+            }
 
         return ret
 
@@ -95,11 +107,9 @@ class FrameData(Dataset):
         tensor_list = [d['frame_tensor'] for d in data]
         bbox_list = [d['bbox_info'] for d in data]
         bbox_ids = [d['bbox_id'] for d in data]
-        scene_list = [d['scene_id'] for d in data]
-        object_list = [d['object_id'] for d in data]
-        ann_list = [d['ann_id'] for d in data]
+        sample_id_list = [d['sample_id'] for d in data]
 
-        return tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list
+        return tensor_list, bbox_list, bbox_ids, sample_id_list
 
     def write_frame_features(self, batches):
         """
@@ -113,9 +123,9 @@ class FrameData(Dataset):
         os.makedirs(target_dir, exist_ok=True)
 
         for batch in tqdm(batches):
-            batch_size = len(batch['scene_id'])
+            batch_size = len(batch['sample_ids'])
             for i in range(batch_size):
-                k = '{}-{}_{}'.format(batch['scene_id'][i], batch['object_id'][i], batch['ann_id'][i])
+                k = '{}'.format(batch['sample_ids'][i])
                 aggregation[k] = batch['frame_features'][i]
 
         np.save(target_npy, aggregation)
@@ -132,14 +142,12 @@ class FrameData(Dataset):
         os.makedirs(target_dir, exist_ok=True)
 
         for batch in tqdm(batches):
-            batch_size = len(batch['scene_id'])
+            batch_size = len(batch['sample_ids'])
             for i in range(batch_size):
                 frame_object_features = batch['proposals_features'][i]
-                scene_id = batch['scene_id'][i]
-                target_object_id = batch['object_id'][i]
-                ann_id = batch['ann_id'][i]
+                sample_id = batch['sample_ids'][i]
                 for object_id, feature in frame_object_features.items():
-                    k = '{}-{}_{}.{}'.format(scene_id, target_object_id, ann_id, object_id)
+                    k = '{}.{}'.format(sample_id, object_id)
                     aggregation[k] = feature.squeeze().cpu().numpy()
 
         np.save(target_npy, aggregation)

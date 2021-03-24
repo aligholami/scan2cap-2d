@@ -71,11 +71,11 @@ def export_bbox_pickle(
 
     aggregation = {}
     for gg in tqdm(SAMPLE_LIST):
+        sample_id = gg['sample_id']
         scene_id = gg['scene_id']
-        object_id = gg['object_id']
-        ann_id = gg['ann_id']
+
         try:
-            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}-{}_{}.png'.format(scene_id, object_id, ann_id))))
+            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.png'.format(sample_id))))
         except FileNotFoundError as fnfe:
             print(fnfe)
             continue
@@ -101,7 +101,7 @@ def export_bbox_pickle(
             )
 
             sample_bbox_info = {
-                '{}-{}_{}'.format(scene_id, object_id, ann_id): bbox_info
+                '{}'.format(sample_id): bbox_info
             }
             try:
                 aggregation[scene_id].append(sample_bbox_info)
@@ -147,14 +147,12 @@ def export_image_features(
 
     for i, f in enumerate(tqdm(data_loader)):
         with torch.no_grad():
-            tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
+            tensor_list, bbox_list, bbox_ids, sample_id_list = f
             frame_features = model(tensor_list).to('cuda')
             extracted_batches.append(
                 {
                     'frame_features': frame_features.detach().cpu(),
-                    'scene_id': scene_list,
-                    'object_id': object_list,
-                    'ann_id': ann_list
+                    'sample_ids': sample_id_list
                 }
             )
 
@@ -197,16 +195,14 @@ def export_bbox_features(
     print("Frame feature extraction started.")
 
     for i, f in enumerate(tqdm(data_loader)):
-        tensor_list, bbox_list, bbox_ids, scene_list, object_list, ann_list = f
+        tensor_list, bbox_list, bbox_ids, sample_id_list = f
 
         with torch.no_grad():
             batch_feats = model(tensor_list, bbox_list, bbox_ids)
             extracted_batches.append(
                 {
                     'proposals_features': batch_feats,
-                    'scene_id': scene_list,
-                    'object_id': object_list,
-                    'ann_id': ann_list
+                    'sample_ids': sample_id_list
                 }
             )
 
