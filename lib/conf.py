@@ -14,6 +14,19 @@ CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.c
 CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
 CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
 
+#################################
+CONF.PATH.SCANREFER_VOCAB = None
+CONF.PATH.SCANREFER_VOCAB_WEIGHTS = None
+CONF.PATH.GLOVE_PICKLE = None
+# data path
+SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_META, "scannetv2-labels.combined.tsv")
+SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary.json")
+SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary_weights.json")
+# MULTIVIEW_DATA = os.path.join(CONF.PATH.SCANNET_DATA, "enet_feats.hdf5")
+MULTIVIEW_DATA = CONF.MULTIVIEW
+GLOVE_PICKLE = os.path.join(CONF.PATH.DATA, "glove.p")
+CONF.MAX_DESC_LEN = 30
+#################################
 
 def adapt_sample_keys(sample_list, key_type):
     """
@@ -36,13 +49,11 @@ def adapt_sample_keys(sample_list, key_type):
 
         elif key_type == 'kk':
             key_format = '{}-{}'
-            key_format = '{}-{}_{}'
             item['sample_id'] = key_format.format(item['scene_id'], item['object_id'])
             up_sl.append(item)
 
         elif key_type == 'k':
             key_format = '{}'
-            key_format = '{}-{}_{}'
             item['sample_id'] = key_format.format(item['scene_id'])
             up_sl.append(item)
 

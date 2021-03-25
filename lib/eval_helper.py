@@ -1,55 +1,49 @@
 import os
 import json
 import torch
-import pickle5
-import numpy as np
 from tqdm import tqdm
 import capeval.bleu.bleu as capblue
 import capeval.cider.cider as capcider
 import capeval.rouge.rouge as caprouge
 import capeval.meteor.meteor as capmeteor
-from lib.config import CONF
-from lib.loss_helper import get_scene_cap_loss
 
-SCANREFER = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered.json")))
-SCANREFER_ORGANIZED = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_filtered_organized.json")))
-
-#
 # def get_info_for_3d(candidates):
-#     # generates a list, containing the predictions on validation set with the following format.
-#     # [
-#     #     {
-#     #         "scene_id": "...",
-#     #         "object_id": "...",
-#     #         "ann_id": "...",
-#     #         "camera_pose": "...",
-#     #         "description": "1 caption here"
-#     #         "bbox_corner": ["x_min", "y_min", "x_max", "y_max"],
-#     #         "object_mask": "RLE FORMAT DETECTED OBJECT MASK",
-#     #         "depth_file_name": "..."
-#     #     }
-#     # ]
+#     """
+#         generates a list, containing the predictions on validation set with the following format.
+#         [
+#             {
+#                 "scene_id": "...",
+#                 "object_id": "...",
+#                 "ann_id": "...",
+#                 "camera_pose": "...",
+#                 "description": "1 caption here"
+#                 "bbox_corner": ["x_min", "y_min", "x_max", "y_max"],
+#                 "object_mask": "RLE FORMAT DETECTED OBJECT MASK",
+#                 "depth_file_name": "..."
+#             }
+#         ]
+#     :param candidates: dictionary mapping from keys to captions.
+#     :return: info_list, described above.
+#     """
+#
 #     if CONF.TYPES.IMAGE_TYPE == 'render':
 #         scanrefer = json.load(open(
 #             '/local-scratch/scan2cap_extracted/common/scanrefer/transformations/ScanRefer_filtered_fixed_viewpoint_val.json',
 #             'r'))
 #
 #     detection_pickle = '/local-scratch/scan2cap_extracted/render-based/bbox_pickle/detected_new/boxes.p'
-#     detections = pickle5.load(open(detection_pickle, 'rb'))
+#     detections = pickle.load(open(detection_pickle, 'rb'))
 #     info_list = []
 #     num_failed = 0
-#     for candidate_key, candidate in candidates.items():
-#         scene_id = candidate_key.split('|')[0]
-#         object_id = candidate_key.split('|')[1]
-#         object_name = candidate_key.split('|')[2]
-#         ann_id = candidate_key.split('|')[3]
+#     for sample_id, captions in candidates.items():
+#
 #         camera_pose = list(filter(
 #             lambda x: str(x['scene_id']) == str(scene_id) and str(x['object_id']) == str(object_id) and str(
 #                 x['ann_id']) == str(ann_id), scanrefer))
 #         assert len(camera_pose) == 1
 #         transformation = camera_pose[0]['transformation']
 #         description = candidate
-#         # print("looking for key {}-{}_{}".format(scene_id, object_id, ann_id))
+#
 #         try:
 #             detected_bbox = [int(item) for item in
 #                              detections[scene_id]['{}-{}_{}'.format(scene_id, object_id, ann_id)][0]['bbox']]
@@ -73,9 +67,9 @@ SCANREFER_ORGANIZED = json.load(open(os.path.join(CONF.PATH.DATA, "ScanRefer_fil
 #
 #     print("ignored candidates: ", num_failed)
 #     return info_list
+#
 
-
-def prepare_corpus(scanrefer, max_len=CONF.TRAIN.MAX_DES_LEN):
+def prepare_corpus(scanrefer, max_len):
     corpus = {}
     for data in scanrefer:
         sample_id = data['sample_id']
@@ -170,7 +164,6 @@ def feed_2d_cap(model, dataset, dataloader, use_tf=False, is_eval=True):
 
 
 def feed_2d_retrieval_cap(model, dataset, dataloader):
-
     candidates = {}
     for data_dict in tqdm(dataloader):
         captions = model(data_dict)
@@ -178,10 +171,23 @@ def feed_2d_retrieval_cap(model, dataset, dataloader):
 
     return candidates
 
-def eval_cap(_global_iter_id, model, dataset, dataloader, phase, folder, use_tf=False, is_eval=True,
-             max_len, mode):
+
+def eval_cap(_global_iter_id,
+             model,
+             dataset,
+             dataloader,
+             phase,
+             folder,
+             max_len,
+             mode,
+             extras=False,
+             use_tf=False,
+             is_eval=True
+             ):
+
     # corpus
-    corpus_path = os.path.join(CONF.PATH.OUTPUT, folder, "corpus_{}.json".format(phase))
+    run_config = dataset.run_config
+    corpus_path = os.path.join(run_config.PATH.OUTPUT, folder, "corpus_{}.json".format(phase))
     if not os.path.exists(corpus_path):
         print("preparing corpus...")
         corpus = prepare_corpus(dataset.split_list, max_len)
@@ -192,7 +198,6 @@ def eval_cap(_global_iter_id, model, dataset, dataloader, phase, folder, use_tf=
         with open(corpus_path) as f:
             corpus = json.load(f)
 
-
     with torch.no_grad():
         if mode == 'nonretrieval':
             candidates = feed_2d_cap(model, dataset, dataloader, use_tf, is_eval)
@@ -202,15 +207,14 @@ def eval_cap(_global_iter_id, model, dataset, dataloader, phase, folder, use_tf=
     candidates = check_candidates(corpus, candidates)
     candidates = organize_candidates(corpus, candidates)
 
-    pred_path = os.path.join(CONF.PATH.OUTPUT, folder, "pred_{}.json".format(phase))
+    pred_path = os.path.join(run_config.PATH.OUTPUT, folder, "pred_{}.json".format(phase))
     with open(pred_path, "w") as f:
         json.dump(candidates, f, indent=4)
 
-    # if add_3d_info:
-    #     # get info list
-    #     info_list = get_info_for_3d(candidates)
-    #     with open(os.path.join(CONF.PATH.EVAL_OUTPUT, folder, "info_list_{}.json".format(phase)), "w") as f:
-    #         json.dump(info_list, f, indent=4)
+    if extras:
+        extras = dataset.get_candidate_extras(candidates)
+        with open(os.path.join(run_config.PATH.OUTPUT, folder, "extras_{}.json".format(phase)), "w") as f:
+            json.dump(extras, f, indent=4)
 
     # compute scores
     print("computing scores...")
@@ -221,7 +225,7 @@ def eval_cap(_global_iter_id, model, dataset, dataloader, phase, folder, use_tf=
 
     # save scores
     print("saving scores...")
-    score_path = os.path.join(CONF.PATH.OUTPUT, folder, "score_{}.json".format(phase))
+    score_path = os.path.join(run_config.PATH.OUTPUT, folder, "score_{}.json".format(phase))
     with open(score_path, "w") as f:
         scores = {
             "bleu-1": [float(s) for s in bleu[1][0]],

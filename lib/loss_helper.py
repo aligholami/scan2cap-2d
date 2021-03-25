@@ -1,24 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 import torch
 import torch.nn as nn
-import numpy as np
-import sys
-import os
-
-sys.path.append(os.path.join(os.getcwd(), "lib"))  # HACK add the lib folder
-from utils.nn_distance import nn_distance, huber_loss
-from lib.ap_helper import parse_predictions
-from lib.loss import SoftmaxRankingLoss
-from utils.box_util import get_3d_box, get_3d_box_batch, box3d_iou, box3d_iou_batch
-
-FAR_THRESHOLD = 0.6
-NEAR_THRESHOLD = 0.3
-GT_VOTE_FACTOR = 3  # number of GT votes per point
-OBJECTNESS_CLS_WEIGHTS = [0.2, 0.8]  # put larger weights on positive objectness
 
 
 def compute_cap_loss(data_dict, weights):
