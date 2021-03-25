@@ -1,13 +1,23 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
 class TDBUCaptionBase(nn.Module):
-    def __init__(self, max_desc_len, vocabulary, embeddings, emb_size=300, feat_size=128, hidden_size=512,
-                 num_proposals=256):
+    def __init__(self,
+                 device,
+                 max_desc_len,
+                 vocabulary,
+                 embeddings,
+                 emb_size=300,
+                 feat_size=128,
+                 hidden_size=512,
+                 num_proposals=256
+                 ):
         super().__init__()
 
+        self.device = device
         self.max_desc_len = max_desc_len
         self.vocabulary = vocabulary
         self.embeddings = embeddings
@@ -91,131 +101,19 @@ class TDBUCaptionBase(nn.Module):
 
         return hidden_1, hidden_2, masks
 
-    def forward(self, data_dict, use_tf=True, is_eval=False):
-        if not is_eval:
-            data_dict = self.forward_sample_batch(data_dict)
-        else:
-            data_dict = self.forward_scene_batch(data_dict, use_tf)
-
-        return data_dict
-
-    def forward_sample_batch(self, data_dict):
-        """
-            generate descriptions based on input tokens and object features
-        """
-
-        # unpack
-        word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
-        des_lens = data_dict["lang_len"]  # batch_size
-        obj_feats = data_dict["aggregated_vote_features"]  # batch_size, num_proposals, feat_size
-
-        num_words = des_lens[0]
-        batch_size = des_lens.shape[0]
-
-        # find the target object ids
-        target_ids, target_ious = select_target(data_dict)
-
-        # select object features
-        target_feats = select_feat(obj_feats, target_ids, mode)  # batch_size, feat_size
-
-        # recurrent from 0 to max_len - 2
-        outputs = []
-        # masks = []
-        hidden_1 = torch.zeros(batch_size, self.hidden_size).cuda()  # batch_size, hidden_size
-        hidden_2 = torch.zeros(batch_size, self.hidden_size).cuda()  # batch_size, hidden_size
-        step_id = 0
-        step_input = word_embs[:, step_id]  # batch_size, emb_size
-        while True:
-            # feed
-            hidden_1, hidden_2, step_mask = self.step(step_input, target_feats, obj_feats, hidden_1, hidden_2)
-            step_output = self.classifier(hidden_2)  # batch_size, num_vocabs
-
-            # store
-            step_output = step_output.unsqueeze(1)  # batch_size, 1, num_vocabs
-            outputs.append(step_output)
-            # masks.append(step_mask) # batch_size, num_proposals, 1
-
-            # next step
-            step_id += 1
-            if step_id == num_words - 1: break  # exit for train mode
-            step_input = word_embs[:, step_id]  # batch_size, emb_size
-
-        outputs = torch.cat(outputs, dim=1)  # batch_size, num_words - 1/max_len, num_vocabs
-        # masks = torch.cat(masks, dim=-1) # batch_size, num_proposals, num_words - 1/max_len
-
-        # store
-        data_dict["lang_cap"] = outputs
-        data_dict["pred_ious"] = np.mean(target_ious)
-        # data_dict["topdown_attn"] = masks
-
-        return data_dict
-
-    def forward_scene_batch(self, data_dict, use_tf=False):
-        """
-        generate descriptions based on input tokens and object features
-        """
-
-        # unpack
-        word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
-        des_lens = data_dict["lang_len"]  # batch_size
-        obj_feats = data_dict["aggregated_vote_features"]  # batch_size, num_proposals, feat_size
-
-        num_words = des_lens[0]
-        batch_size = des_lens.shape[0]
-
-        # recurrent from 0 to max_len - 2
-        outputs = []
-        # masks = []
-        for prop_id in range(self.num_proposals):
-            # select object features
-            target_feats = obj_feats[:, prop_id]  # batch_size, emb_size
-
-            # start recurrence
-            prop_outputs = []
-            # prop_masks = []
-            hidden_1 = torch.zeros(batch_size, self.hidden_size).cuda()  # batch_size, hidden_size
-            hidden_2 = torch.zeros(batch_size, self.hidden_size).cuda()  # batch_size, hidden_size
-            step_id = 0
-            step_input = word_embs[:, step_id]  # batch_size, emb_size
-            while True:
-                # feed
-                hidden_1, hidden_2, step_mask = self.step(step_input, target_feats, obj_feats, hidden_1, hidden_2)
-                step_output = self.classifier(hidden_2)  # batch_size, num_vocabs
-
-                # predicted word
-                step_preds = []
-                for batch_id in range(batch_size):
-                    idx = step_output[batch_id].argmax()  # 0 ~ num_vocabs
-                    word = self.vocabulary["idx2word"][str(idx.item())]
-                    emb = torch.FloatTensor(self.embeddings[word]).unsqueeze(0).cuda()  # 1, emb_size
-                    step_preds.append(emb)
-
-                step_preds = torch.cat(step_preds, dim=0)  # batch_size, emb_size
-
-                # store
-                step_output = step_output.unsqueeze(1)  # batch_size, 1, num_vocabs
-                prop_outputs.append(step_output)
-                # prop_masks.append(step_mask)
-
-                # next step
-                step_id += 1
-                if not use_tf and step_id == self.max_desc_len - 1: break  # exit for eval mode
-                if use_tf and step_id == num_words - 1: break  # exit for train mode
-                step_input = step_preds if not use_tf else word_embs[:, step_id]  # batch_size, emb_size
-
-            prop_outputs = torch.cat(prop_outputs, dim=1).unsqueeze(
-                1)
-            outputs.append(prop_outputs)
-
-        outputs = torch.cat(outputs, dim=1)  # batch_size, num_proposals, num_words - 1/max_len, num_vocabs
-        data_dict["lang_cap"] = outputs
-        return data_dict
-
 
 class ShowAttendAndTell(TDBUCaptionBase):
 
-    def __init__(self, max_desc_len, vocabulary, embeddings, emb_size, feat_size, hidden_size, num_proposals,
-                 concat_global=False):
+    def __init__(self,
+                 max_desc_len,
+                 vocabulary,
+                 embeddings,
+                 emb_size,
+                 feat_size,
+                 hidden_size,
+                 num_proposals,
+                 concat_global=False
+                 ):
         self.concat_global = concat_global
         self.max_desc_len = max_desc_len
         super().__init__(
@@ -290,7 +188,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
             for batch_id in range(batch_size):
                 idx = step_output[batch_id].argmax()  # 0 ~ num_vocabs
                 word = self.vocabulary["idx2word"][str(idx.item())]
-                emb = torch.FloatTensor(self.embeddings[word]).unsqueeze(0).cuda()  # 1, emb_size
+                emb = torch.tensor(self.embeddings[word], dtype=torch.float).unsqueeze(0).to(self.device)
                 step_preds.append(emb)
 
             # store
@@ -359,7 +257,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
             for batch_id in range(batch_size):
                 idx = step_output[batch_id].argmax()  # 0 ~ num_vocabs
                 word = self.vocabulary["idx2word"][str(idx.item())]
-                emb = torch.FloatTensor(self.embeddings[word]).unsqueeze(0).cuda()  # 1, emb_size
+                emb = torch.tensor(self.embeddings[word], dtype=torch.float).unsqueeze(0).to(self.device)
                 step_preds.append(emb)
 
             step_preds = torch.cat(step_preds, dim=0)  # batch_size, emb_size
