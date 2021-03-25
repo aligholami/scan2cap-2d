@@ -26,6 +26,9 @@ SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary_wei
 MULTIVIEW_DATA = CONF.MULTIVIEW
 GLOVE_PICKLE = os.path.join(CONF.PATH.DATA, "glove.p")
 CONF.MAX_DESC_LEN = 30
+self.proposal_feature_shape = 2052
+self.global_feature_size = 2048
+
 #################################
 
 def adapt_sample_keys(sample_list, key_type):

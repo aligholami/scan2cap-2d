@@ -13,6 +13,7 @@ from collections import Counter
 from torch.utils.data import Dataset
 import torch.utils.data as data_tools
 
+
 class ScanReferDataset(Dataset):
 
     def __init__(self,
@@ -48,48 +49,38 @@ class ScanReferDataset(Dataset):
 
         with open(self.run_config.PATH.BOX, 'rb') as f:
             box = pickle.load(f)
-            box = box[sample_id]
+            box = box[sample_id]  # Returns a list of dict
 
-        with open(self.run_config.PATH.BOX_FEAT, 'rb') as f:
-            box_feat = np.load(f)
-            box_feat = box_feat[sample_id]
+        # Maps object ids (oracle or detected) to their bounding box features
+        with np.load(self.run_config.PATH.BOX_FEAT) as all_box_feats:
+            box_feat = all_box_feats[sample_id]
 
-        with open(self.run_config.PATH.FRAME_FEAT, 'rb') as f:
-            frame_feat = np.load(f)
+        with np.load(self.run_config.PATH.FRAME_FEAT) as all_frame_feats:
+            frame_feat = all_frame_feats[sample_id]
 
         pool_ids = []
         pool_feats = []
         for ix, bbox_info in enumerate(box):
-            object_id = bbox_info['object_id']  # true if bbox_type is oracle, otherwise it only has the target object id
+            object_id = np.array(bbox_info['object_id'], dtype=np.int16)
             xyxy_bbox = np.array(
                 [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
-                 math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])])
-
-            target_object_feat = np.concatenate((target_object_feat, xyxy_bbox))
-
+                 math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
+            object_feature = np.concatenate((box_feat[ix], xyxy_bbox))
+            pool_feats.append(object_feature)
             pool_ids.append(object_id)
-            pool_feats.append(box_feat)
 
         ret = {
-            'use': True,
-            'lang_feat': None,
-            'lang_len': None,
-            'lang_ids': None,
-            'vis_feats': None,
-            'sample_ids': None,
-            "target_object_feat": None,
-            "proposals_object_ids_list": None,
-            "proposals_feats_list": None,
+            'lang_feat': lang_feat,
+            'lang_len': lang_len,
+            'lang_ids': lang_ids,
+            'vis_feats': frame_feat,
+            'sample_ids': sample_id,
+            "pool_ids": pool_ids,
+            "pool_feats": pool_feats,
             'load_time': time.time() - start
         }
 
         return ret
-
-    def collate_fn(self):
-        pass
-
-    def load_data(self):
-        pass
 
     def get_raw2label(self):
         # mapping
@@ -127,7 +118,7 @@ class ScanReferDataset(Dataset):
     def get_label_info(self):
         label2class = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, 'door': 5,
                        'window': 6, 'bookshelf': 7, 'picture': 8, 'counter': 9, 'desk': 10, 'curtain': 11,
-                       'refridgerator': 12, 'shower curtain': 13, 'toilet': 14, 'sink': 15, 'bathtub': 16, 'others': 17}
+                       'refrigerator': 12, 'shower curtain': 13, 'toilet': 14, 'sink': 15, 'bathtub': 16, 'others': 17}
 
         # mapping
         scannet_labels = label2class.keys()
@@ -267,39 +258,31 @@ class ScanReferDataset(Dataset):
         self.raw2label = self.get_raw2label()
 
     def collate_fn(self, data):
-
-        data = filter(lambda d: d['failed'] == False, data)
-        data_dicts = sorted(data, key=lambda d: len(d['proposals_object_ids_list']), reverse=True)
-        max_proposals_in_batch = len(data_dicts[0]['proposals_object_ids_list'])
-        proposal_feature_shape = 2052
-        global_feature_size = 2048
+        data_dicts = sorted(data, key=lambda d: len(d['pool_ids']), reverse=True)
+        max_proposals_in_batch = len(data_dicts[0]['pool_ids'])
         batch_size = len(data_dicts)
         lang_feat = torch.zeros((batch_size, len(data_dicts[0]['lang_feat']), len(data_dicts[0]['lang_feat'][0])),
                                 dtype=torch.float32)
         lang_len = torch.zeros((batch_size, 1), dtype=torch.int16)
         lang_ids = torch.zeros((batch_size, len(data_dicts[0]['lang_ids'])), dtype=torch.long)
-        scene_id = []
-        ann_id = torch.zeros((batch_size, 1), dtype=torch.int16)
-        object_id = torch.zeros((batch_size, 1), dtype=torch.int16)
-        vis_feats = torch.zeros((batch_size, 2048), dtype=torch.float)
-        target_object_feat = torch.zeros((batch_size, proposal_feature_shape))
-        padded_proposal_feat = torch.zeros((batch_size, max_proposals_in_batch, proposal_feature_shape))
+        sample_ids = []
+        vis_feats = torch.zeros((batch_size, self.run_config.GLOBAL_FEATURE_SIZE), dtype=torch.float)
+        padded_proposal_feat = torch.zeros((batch_size, max_proposals_in_batch, self.run_config.PROPOSAL_FEATURE_SIZE))
         padded_proposal_object_ids = torch.zeros((batch_size, max_proposals_in_batch, 1), dtype=torch.int16)
         padded_proposal_object_ids[:, :, :] = -1
         times = torch.zeros((batch_size, 1))
 
         for ix, d in enumerate(data_dicts):
-            num_proposals = len(d['proposals_object_ids_list'])
+            num_proposals = len(d['pool_ids'])
             padded_proposal_feat[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['proposals_feats_list'])).unsqueeze(0)
+                np.vstack(d['pool_feats'])).unsqueeze(0)
             padded_proposal_object_ids[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['proposals_object_ids_list']))
-            target_object_feat[ix, :] = torch.from_numpy(d['target_object_feat']).unsqueeze(0)
+                np.vstack(d['pool_ids']))
             vis_feats[ix, :] = torch.from_numpy(d['vis_feats']).squeeze().unsqueeze(0)
             lang_feat[ix, :] = torch.tensor(d['lang_feat'])
             lang_len[ix, :] = torch.tensor(d['lang_len'])
             lang_ids[ix, :] = torch.tensor(d['lang_ids'])
-            scene_id.append(d['scene_id'])
+            sample_ids.append(d['sample_id'])
             ann_id[ix, :] = torch.tensor(d['ann_id'])
             object_id[ix, :] = torch.tensor(d['object_id'])
             times[ix, :] = d['load_time']
@@ -308,12 +291,9 @@ class ScanReferDataset(Dataset):
             "lang_feat": lang_feat,
             "lang_len": lang_len,
             "lang_ids": lang_ids,
-            "scene_id": scene_id,
-            "ann_id": ann_id,
-            "object_id": object_id,
             "vis_feats": vis_feats,
-            "target_object_feat": target_object_feat,
-            "proposals_object_ids": padded_proposal_object_ids,
-            "proposals_feats": padded_proposal_feat,
+            "sample_ids": sample_ids,
+            "pool_ids": padded_proposal_object_ids,
+            "pool_feats": padded_proposal_feat,
             "load_time": times
         }

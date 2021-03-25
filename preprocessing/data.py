@@ -147,8 +147,8 @@ class FrameData(Dataset):
             for i in range(batch_size):
                 frame_object_features = batch['proposals_features'][i]
                 sample_id = batch['sample_ids'][i]
+                sample_box_features = {}
                 for object_id, feature in frame_object_features.items():
-                    k = '{}.{}'.format(sample_id, object_id)
-                    aggregation[k] = feature.squeeze().cpu().numpy()
-
+                    sample_box_features[object_id] = feature.squeeze().cpu().numpy()
+                aggregation[sample_id] = sample_box_features
         np.save(target_npy, aggregation)
