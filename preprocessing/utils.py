@@ -53,13 +53,35 @@ def get_label_info(SCANNET_V2_TSV):
     return raw2label, label2class
 
 
+def validate_bbox(xyxy, width, height):
+    x_min = xyxy[0]
+    y_min = xyxy[1]
+    x_max = xyxy[2]
+    y_max = xyxy[3]
+    fix = 5
+    if x_max - x_min < fix:
+        if x_min > fix:
+            x_min -= fix
+        elif x_max < width - fix:
+            x_max += fix
+
+    if y_max - y_min < fix:
+        if y_min > fix:
+            y_min -= fix
+        elif y_max < height - fix:
+            y_max += fix
+
+    return [x_min, y_min, x_max, y_max]
+
+
 def export_bbox_pickle(
         AGGR_JSON_PATH,
         SCANNET_V2_TSV,
         INSTANCE_MASK_PATH,
         SAMPLE_LIST,
         SCENE_LIST,
-        WRITE_PICKLES_PATH
+        WRITE_PICKLES_PATH,
+        RESIZE=(320, 240)
 ):
     id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
@@ -74,7 +96,10 @@ def export_bbox_pickle(
         scene_id = gg['scene_id']
 
         try:
-            label_img = np.array(Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.objectId.encoded.png'.format(sample_id))))
+            label_img = np.array(
+                Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.objectId.encoded.png'.format(sample_id))))
+            scale_x = RESIZE[0] // label_img.shape[0]
+            scale_y = RESIZE[1] // label_img.shape[1]
         except FileNotFoundError as fnfe:
             print(fnfe)
             continue
@@ -89,10 +114,11 @@ def export_bbox_pickle(
             target_coords = np.where(label_img == label)
             x_max, y_max = np.max(target_coords[1], axis=0), np.max(target_coords[0], axis=0)
             x_min, y_min = np.min(target_coords[1], axis=0), np.min(target_coords[0], axis=0)
-
+            bbox_scaled = [x_min * scale_x, y_min * scale_y, x_max * scale_x, y_max * scale_y]
+            bbox_validated = validate_bbox(bbox_scaled, RESIZE[0], RESIZE[1])
             bbox_info.append(
                 {
-                    "bbox": [x_min, y_min, x_max, y_max],
+                    "bbox": bbox_validated,
                     "object_id": label - 1,
                     "object_name": raw_name,
                     "sem_label": sem_label
@@ -113,11 +139,13 @@ def export_image_features(
         BOX,
         BOX_FEAT,
         SAMPLE_LIST,
-        DEVICE
+        DEVICE,
+        RESIZE
 ):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     fd_train = FrameData(
+        resize=RESIZE,
         frame_path=IMAGE,
         frame_feature_path=IMAGE_FEAT,
         box_path=BOX,
@@ -161,12 +189,14 @@ def export_bbox_features(
         BOX,
         BOX_FEAT,
         SAMPLE_LIST,
-        DEVICE
+        DEVICE,
+        RESIZE
 ):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
 
     fd_train = FrameData(
+        resize=RESIZE,
         frame_path=IMAGE,
         frame_feature_path=IMAGE_FEAT,
         box_path=BOX,

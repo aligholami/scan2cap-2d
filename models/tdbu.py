@@ -13,7 +13,6 @@ class TDBUCaptionBase(nn.Module):
                  emb_size=300,
                  feat_size=128,
                  hidden_size=512,
-                 num_proposals=256
                  ):
         super().__init__()
 
@@ -26,7 +25,6 @@ class TDBUCaptionBase(nn.Module):
         self.emb_size = emb_size
         self.feat_size = feat_size
         self.hidden_size = hidden_size
-        self.num_proposals = num_proposals
 
         # top-down recurrent module
         bias_state = False
@@ -111,10 +109,8 @@ class ShowAttendAndTell(TDBUCaptionBase):
                  emb_size,
                  feat_size,
                  hidden_size,
-                 num_proposals,
-                 concat_global=False
                  ):
-        self.concat_global = concat_global
+
         self.max_desc_len = max_desc_len
         super().__init__(
             max_desc_len=max_desc_len,
@@ -123,14 +119,13 @@ class ShowAttendAndTell(TDBUCaptionBase):
             emb_size=emb_size,
             feat_size=feat_size,
             hidden_size=hidden_size,
-            num_proposals=num_proposals
         )
 
-        if self.concat_global:
-            self.reduce_dim = nn.Sequential(
-                nn.Linear(in_features=feat_size + 2048, out_features=feat_size),
-                nn.ReLU()
-            )
+        # if self.concat_global:
+        #     self.reduce_dim = nn.Sequential(
+        #         nn.Linear(in_features=feat_size + 2048, out_features=feat_size),
+        #         nn.ReLU()
+        #     )
 
     def forward(self, data_dict, use_tf=True, is_eval=False):
         if not is_eval:
@@ -160,11 +155,11 @@ class ShowAttendAndTell(TDBUCaptionBase):
         # target_feats = self.max_pool(data_dict["target_object_feat"])
         # global_feature = data_dict["vis_feats"]
 
-        if self.concat_global:
-            vis_feats = data_dict['vis_feats']  # batch_size, 2048
-            target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
-            target_feats = self.reduce_dim(target_feats)
-            # target_feats = self.reduce_dim(target_feats)
+        # if self.concat_global:
+        #     vis_feats = data_dict['vis_feats']  # batch_size, 2048
+        #     target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
+        #     target_feats = self.reduce_dim(target_feats)
+        #     # target_feats = self.reduce_dim(target_feats)
 
         # come to squeeze later
         # batch_size, object_feat_size
@@ -235,11 +230,11 @@ class ShowAttendAndTell(TDBUCaptionBase):
         # target_feats = obj_feats[:, prop_id] # batch_size, emb_size
         target_feats = data_dict["target_object_feat"]
 
-        if self.concat_global:
-            vis_feats = data_dict['vis_feats']  # batch_size, 2048
-            target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
-            target_feats = self.reduce_dim(target_feats)
-            # target_feats = self.reduce_dim(target_feats)
+        # if self.concat_global:
+        #     vis_feats = data_dict['vis_feats']  # batch_size, 2048
+        #     target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
+        #     target_feats = self.reduce_dim(target_feats)
+        #     # target_feats = self.reduce_dim(target_feats)
 
         target_feats = target_feats.squeeze()
         # start recurrence

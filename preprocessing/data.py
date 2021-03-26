@@ -9,7 +9,8 @@ from tqdm import tqdm
 
 
 class FrameData(Dataset):
-    def __init__(self, frame_path, frame_feature_path, box_path, box_feature_path, input_list, transforms):
+    def __init__(self, resize, frame_path, frame_feature_path, box_path, box_feature_path, input_list, transforms):
+        self.new_width, self.new_height = resize
         self.frames_path = frame_path
         self.frame_feature_path = frame_feature_path
         self.box_path = box_path
@@ -22,7 +23,6 @@ class FrameData(Dataset):
             with open(box_path, 'rb') as bpf:
                 self.box = pickle.load(bpf)
 
-                print(list(self.box.keys())[:10])
     def __len__(self):
         return len(self.input_list)
 
@@ -31,7 +31,7 @@ class FrameData(Dataset):
         sample_id = input_item['sample_id']
         scene_id = input_item['scene_id']
 
-        frame_tensor, ow, oh, nw, nh = self.load_image(
+        frame_tensor = self.load_image(
             image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(sample_id))
         )
 
@@ -45,10 +45,9 @@ class FrameData(Dataset):
                 scale_y = nh / oh
                 xyxy_bbox_scaled = [math.floor(info["bbox"][0] * scale_x), math.floor(info["bbox"][1] * scale_y),
                                     math.ceil(info["bbox"][2] * scale_x), math.ceil(info["bbox"][3] * scale_y)]
-                xyxy_bbox_validated = self.validate_bbox(xyxy_bbox_scaled, nw, nh)
-                boxes[i] = torch.FloatTensor(xyxy_bbox_validated)
+                boxes[i] = torch.tensor(xyxy_bbox_scaled, dtype=torch.float)
                 object_id = info['object_id']
-                boxes_object_ids[i] = torch.IntTensor([object_id])
+                boxes_object_ids[i] = torch.tensor([object_id], dtype=torch.int16)
 
             ret = {
                 # 'failed': False,
@@ -59,9 +58,7 @@ class FrameData(Dataset):
             }
 
         else:
-
             ret = {
-                # 'use': True,
                 'frame_tensor': frame_tensor,
                 'bbox_info': None,
                 'bbox_id': None,
@@ -70,38 +67,16 @@ class FrameData(Dataset):
 
         return ret
 
-    def validate_bbox(self, xyxy, width, height):
-        x_min = xyxy[0]
-        y_min = xyxy[1]
-        x_max = xyxy[2]
-        y_max = xyxy[3]
-        fix = 5
-        if x_max - x_min < fix:
-            if x_min > fix:
-                x_min -= fix
-            elif x_max < width - fix:
-                x_max += fix
-
-        if y_max - y_min < fix:
-            if y_min > fix:
-                y_min -= fix
-            elif y_max < height - fix:
-                y_max += fix
-
-        return [x_min, y_min, x_max, y_max]
-
     def load_image(self, image_path):
-        new_width, new_height = 320, 240
         old_image = Image.open(image_path)
-        old_width, old_height = old_image.size
-        resized = old_image.resize((new_width, new_height))
+        resized = old_image.resize((self.new_width, self.new_height))
         rgbed = resized.convert('RGB')
         frame_tensor = torch.from_numpy(np.asarray(rgbed).astype(np.float32)).permute(2, 0, 1)
 
         if self.transforms:
             frame_tensor = self.transforms(frame_tensor / 255.0)
 
-        return frame_tensor, old_width, old_height, new_width, new_height
+        return frame_tensor
 
     def collate_fn(self, data):
         # data = list(filter(lambda x: x['use'], data))

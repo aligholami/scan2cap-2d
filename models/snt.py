@@ -11,7 +11,6 @@ class CaptionBase(nn.Module):
                  emb_size=300,
                  feat_size=2048,
                  hidden_size=512,
-                 num_proposals=256
                  ):
         super().__init__()
 
@@ -23,7 +22,6 @@ class CaptionBase(nn.Module):
         self.emb_size = emb_size
         self.feat_size = feat_size
         self.hidden_size = hidden_size
-        self.num_proposals = num_proposals
         self.map_feat = nn.Sequential(
             nn.Linear(feat_size, hidden_size),
             nn.ReLU()
@@ -46,22 +44,16 @@ class ShowAndTell(CaptionBase):
                  training_tf,
                  vocabulary,
                  embeddings,
-                 include_target_bbox_feats,
-                 input_dim=2048,
-                 h_dim=512
+                 feat_size,
+                 hidden_size
                  ):
-
-        self.include_target_bbox_feats = include_target_bbox_feats
-
-        feat_size = 2048
-        if self.include_target_bbox_feats:
-            feat_size = 2048 + 2052
 
         super().__init__(
             max_desc_len=max_desc_len,
             vocabulary=vocabulary,
             embeddings=embeddings,
-            feat_size=feat_size
+            feat_size=feat_size,
+            hidden_size=hidden_size
         )
 
         self.training_tf = training_tf

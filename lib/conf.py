@@ -3,6 +3,15 @@ import json
 from easydict import EasyDict
 
 CONF = EasyDict()
+CONF.SCAN_WIDTH = 320
+CONF.SCAN_HEIGHT = 240
+CONF.MAX_DESC_LEN = 30
+CONF.EMBEDDING_SIZE = 300
+CONF.DECODER_HIDDEN_SIZE = 512
+CONF.GLOBAL_FEATURE_SIZE = 2048
+CONF.PROPOSAL_FEATURE_SIZE = 2052
+CONF.NUM_PROPOSALS = None
+
 CONF.PATH = EasyDict()
 CONF.PATH.DATA_ROOT = '/local-scratch/code/scan2cap_extracted'
 CONF.PATH.CODE_ROOT = '/local-scratch/scan2cap_codebase'
@@ -15,19 +24,15 @@ CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtere
 CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
 
 #################################
+# Question? Should they have different vocabularies?
 CONF.PATH.SCANREFER_VOCAB = None
 CONF.PATH.SCANREFER_VOCAB_WEIGHTS = None
 CONF.PATH.GLOVE_PICKLE = None
 # data path
-SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_META, "scannetv2-labels.combined.tsv")
 SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary.json")
 SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary_weights.json")
-# MULTIVIEW_DATA = os.path.join(CONF.PATH.SCANNET_DATA, "enet_feats.hdf5")
-MULTIVIEW_DATA = CONF.MULTIVIEW
 GLOVE_PICKLE = os.path.join(CONF.PATH.DATA, "glove.p")
-CONF.MAX_DESC_LEN = 30
-self.proposal_feature_shape = 2052
-self.global_feature_size = 2048
+
 
 #################################
 

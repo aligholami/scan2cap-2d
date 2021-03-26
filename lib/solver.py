@@ -67,7 +67,6 @@ class Solver:
                  optimizer,
                  stamp,
                  val_step=10,
-                 detection=True,
                  caption=True,
                  use_tf=True,
                  lr_decay_step=None,
@@ -86,7 +85,6 @@ class Solver:
         self.stamp = stamp
         self.val_step = val_step
 
-        self.detection = detection
         self.caption = caption
         self.use_tf = use_tf
 
@@ -261,10 +259,7 @@ class Solver:
     def _compute_loss(self, data_dict):
         data_dict = get_scene_cap_loss(
             data_dict=data_dict,
-            config=self.config,
             weights=self.dataset["train"].weights,
-            detection=self.detection,
-            caption=self.caption
         )
 
         # store loss
@@ -285,7 +280,6 @@ class Solver:
             folder=self.stamp,
             use_tf=False,
             max_len=CONF.TRAIN.MAX_DES_LEN,
-            force=True,
             mode='2d_no_proposal'
         )
 

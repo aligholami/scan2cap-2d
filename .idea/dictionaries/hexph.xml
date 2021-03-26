@@ -2,6 +2,9 @@
   <dictionary name="hexph">
     <words>
       <w>cuda</w>
+      <w>dataloader</w>
+      <w>dloader</w>
+      <w>dset</w>
       <w>lpath</w>
       <w>referit</w>
       <w>resnet</w>

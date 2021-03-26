@@ -3,6 +3,7 @@ import argparse
 from lib.conf import get_config, get_samples
 from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
 
+
 def parse_arg():
     ap = argparse.ArgumentParser()
     ap.add_argument('--exp_type', default='nonretrieval', help='retrieval or nonretrieval')
@@ -11,7 +12,7 @@ def parse_arg():
     ap.add_argument('--box', default='oracle', help='oracle, mrcnn or votenet')
 
     return ap.parse_args()
-                                
+
 
 def main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
@@ -32,11 +33,13 @@ def main(exp_type, dataset, viewpoint, box):
         INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,
         SAMPLE_LIST=sample_list,
         SCENE_LIST=scene_list,
-        WRITE_PICKLES_PATH=run_config.PATH.BOX
+        WRITE_PICKLES_PATH=run_config.PATH.BOX,
+        RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
     )
 
     # 3. Run on Device
     export_image_features(
+        RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
         IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
         BOX=None,
@@ -47,6 +50,7 @@ def main(exp_type, dataset, viewpoint, box):
 
     # 4. Run on Device
     export_bbox_features(
+        RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
         IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
         BOX=run_config.PATH.BOX,
@@ -54,8 +58,6 @@ def main(exp_type, dataset, viewpoint, box):
         SAMPLE_LIST=sample_list,
         DEVICE=device
     )
-
-    # 5.
 
 
 if __name__ == '__main__':

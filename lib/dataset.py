@@ -12,17 +12,20 @@ from itertools import chain
 from collections import Counter
 from torch.utils.data import Dataset
 import torch.utils.data as data_tools
-
+from itertools import permutations
 
 class ScanReferDataset(Dataset):
 
     def __init__(self,
+                 visual_feat,
                  split,
                  sample_list,
                  scene_list,
                  run_config
                  ):
 
+        self.visual_feat = visual_feat
+        self.add_global, self.add_target, self.add_context = self.verify_visual_feats()
         self.split = split
         self.sample_list = sample_list
         self.scene_list = scene_list
@@ -81,6 +84,22 @@ class ScanReferDataset(Dataset):
         }
 
         return ret
+
+    def verfiy_visual_feat(self):
+        assert ('G' in self.visual_feat or 'T' in self.visual_feat or 'C' in self.visual_feat)
+        assert len(self.visual_feat) <= 3
+
+        add_global, add_target, add_context = False, False, False
+        if 'G' in visual_feat:
+            add_global = True
+
+        if 'T' in visual_feat:
+            add_target = True
+
+        if 'C' in visual_feat:
+            add_context = True
+
+        return add_global, add_target, add_context
 
     def get_raw2label(self):
         # mapping
