@@ -133,7 +133,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
             )
         assert self.feat_input['add_target']
 
-    def forward(self, data_dict, use_tf=True, is_eval=False):
+    def forward(self, data_dict, is_eval=False):
 
         if self.feat_input['add_global']:
             t_feat = data_dict['t_feat']  # batch_size, object_feat_size
@@ -144,20 +144,17 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
         if not is_eval:
             # During training
-            data_dict = self.forward_sample_batch(data_dict)
+            data_dict = self.forward_train_batch(data_dict)
         else:
             # During evaluation
-            use_tf = False
-            data_dict = self.forward_scene_batch(data_dict, use_tf)
+            data_dict = self.forward_inference_batch(data_dict)
 
         return data_dict
 
-    def forward_sample_batch(self, data_dict):
+    def forward_train_batch(self, data_dict):
         """
             generate descriptions based on input tokens and object features
         """
-
-        # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
         c_feat = data_dict['c_feat']  # batch_size, num_objects_in_image, object_feat_size
@@ -194,30 +191,25 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
             # next step
             step_id += 1
-            if step_id == num_words - 1: break  # exit for train mode
+            if step_id == num_words - 1:
+                break  # exit for train mode
             step_input = word_embs[:, step_id]  # batch_size, emb_size
 
         outputs = torch.cat(outputs, dim=1)  # batch_size, num_words - 1/max_len, num_vocabs
         masks = torch.cat(masks, dim=-1)  # batch_size, num_words - 1/max_len
 
-        # store
         data_dict["lang_cap"] = outputs
-        # FIX THIS LATER
-        data_dict["pred_ious"] = np.array([0])  # np.mean(target_ious)
         data_dict["topdown_attn"] = masks
 
         return data_dict
 
-    def forward_scene_batch(self, data_dict, use_tf=False):
+    def forward_inference_batch(self, data_dict):
         """
         generate descriptions based on input tokens and object features
         """
-
-        # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
         c_feat = data_dict["c_feat"]  # batch_size, num_proposals, object_feat_size
-        num_words = des_lens[0]
         batch_size = des_lens.shape[0]
         t_feat = data_dict["t_feat"]
 
@@ -227,8 +219,8 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
         t_feat = t_feat.squeeze()
         # start recurrence
-        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
-        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
+        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=False).to(self.device)  # batch_size, hidden_size
+        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=False).to(self.device)  # batch_size, hidden_size
         step_id = 0
         step_input = word_embs[:, step_id]  # batch_size, emb_size
         while True:
@@ -253,9 +245,9 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
             # next step
             step_id += 1
-            if not use_tf and step_id == self.max_desc_len - 1: break  # exit for eval mode
-            if use_tf and step_id == num_words - 1: break  # exit for train mode
-            step_input = step_preds if not use_tf else word_embs[:, step_id]  # batch_size, emb_size
+            if step_id == self.max_desc_len - 1:
+                break  # exit for eval mode
+            step_input = step_preds # batch_size, emb_size
 
         outputs = torch.cat(outputs, dim=1)  # batch_size, num_words - 1/max_len, num_vocabs
         masks = torch.cat(masks, dim=-1)  # batch_size, num_words - 1/max_len

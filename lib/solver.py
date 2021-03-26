@@ -67,7 +67,6 @@ class Solver:
                  optimizer,
                  stamp,
                  val_step=10,
-                 caption=True,
                  use_tf=True,
                  lr_decay_step=None,
                  lr_decay_rate=None,
@@ -85,7 +84,6 @@ class Solver:
         self.stamp = stamp
         self.val_step = val_step
 
-        self.caption = caption
         self.use_tf = use_tf
 
         self.lr_decay_step = lr_decay_step

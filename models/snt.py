@@ -43,7 +43,6 @@ class ShowAndTell(CaptionBase):
     def __init__(self,
                  device,
                  max_desc_len,
-                 training_tf,
                  vocabulary,
                  embeddings,
                  emb_size,
@@ -63,9 +62,8 @@ class ShowAndTell(CaptionBase):
         )
         self.feat_input = feat_input
         assert self.feat_input['add_global']
-        self.training_tf = training_tf
 
-    def forward(self, data_dict, use_tf=True, is_eval=False):
+    def forward(self, data_dict, is_eval=False):
 
         if self.feat_input['add_target']:
             g_feat = data_dict["g_feat"]
@@ -74,16 +72,13 @@ class ShowAndTell(CaptionBase):
             data_dict['t_feat'] = t_feat
 
         if not is_eval:
-            # During training
-            data_dict = self.forward_sample_batch(data_dict)
+            data_dict = self.forward_train_batch(data_dict)
         else:
-            # During evaluation
-            use_tf = False
-            data_dict = self.forward_scene_batch(data_dict, use_tf)
+            data_dict = self.forward_inference_batch(data_dict)
 
         return data_dict
 
-    def forward_sample_batch(self, data_dict):
+    def forward_train_batch(self, data_dict):
         """
         generate descriptions based on input tokens and object features
         """
@@ -125,8 +120,7 @@ class ShowAndTell(CaptionBase):
             step_id += 1
             if step_id == num_words - 1: break  # exit for train mode
 
-            use_tf = False if random.random() > self.training_tf else True
-            step_input = step_preds if not use_tf else word_embs[:, step_id]  # batch_size, emb_size
+            step_input = word_embs[:, step_id]  # batch_size, emb_size
 
         outputs = torch.cat(outputs, dim=1)  # batch_size, num_words - 1/max_len, num_vocabs
 
@@ -135,7 +129,7 @@ class ShowAndTell(CaptionBase):
 
         return data_dict
 
-    def forward_scene_batch(self, data_dict, use_tf=False):
+    def forward_inference_batch(self, data_dict):
         """
         generate descriptions based on input tokens and object features
         """
@@ -178,9 +172,8 @@ class ShowAndTell(CaptionBase):
 
             # next step
             step_id += 1
-            if not use_tf and step_id == self.max_desc_len - 1: break  # exit for eval mode
-            if use_tf and step_id == num_words - 1: break  # exit for train mode
-            step_input = step_preds if not use_tf else word_embs[:, step_id]  # batch_size, emb_size
+            if step_id == self.max_desc_len - 1: break  # exit for eval mode
+            step_input = step_preds
 
             outputs.append(step_output)
 

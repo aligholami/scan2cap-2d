@@ -322,3 +322,48 @@ class ScanReferDataset(Dataset):
             'sample_ids': sample_ids,
             'load_time': times
         }
+
+    def get_info_for_3d(self, candidates):
+        """
+            generates a list, containing the predictions on validation set with the following format.
+            [
+                {
+                    "scene_id": "...",
+                    "object_id": "...",
+                    "ann_id": "...",
+                    "camera_pose": "...",
+                    "description": "1 caption here"
+                    "bbox_corner": ["x_min", "y_min", "x_max", "y_max"],
+                    "object_mask": "RLE FORMAT DETECTED OBJECT MASK",
+                    "depth_file_name": "..."
+                }
+            ]
+        :param candidates: dictionary mapping from keys to captions.
+        :return: info_list, described above.
+        """
+
+        info_list = []
+        for sample_id, caption in candidates.items():
+            with open(self.run_config.PATH.BOX, 'rb') as f:
+                box = pickle.load(f)
+                box = box[sample_id]  # Returns a list of dict
+            camera_pose = list(filter(
+                lambda x: x['sample_id'] == sample_id, self.sample_list))
+            assert len(camera_pose) == 1
+            transformation = camera_pose[0]['transformation']
+            bbox = box['bbox']
+            mask = box['mask']
+            depth_file_name = '{}.depth.png'.format(sample_id)
+            info_dict = {
+                'scene_id': scene_id,
+                'object_id': object_id,
+                'ann_id': ann_id,
+                'transformation': transformation,
+                'description': caption,
+                'detected_bbox': bbox,
+                'detected_mask_rle': mask,
+                'depth_file_name': depth_file_name
+            }
+            info_list.append(info_dict)
+        return info_list
+

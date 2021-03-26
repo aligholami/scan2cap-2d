@@ -19,14 +19,6 @@ from models.snt import ShowAndTell
 from models.tdbu import ShowAttendAndTell
 from lib.conf import get_config, get_samples
 
-# Ensure reproducability
-seed = 3
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = False
-
 
 def verify_visual_feat(visual_feat):
     assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
@@ -87,7 +79,6 @@ def get_model(args, run_config, dataset):
         model = ShowAndTell(
             device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
-            training_tf=True,
             vocabulary=dataset.vocabulary,
             embeddings=dataset.embedding,
             emb_size=run_config.EMBEDDING_SIZE,
@@ -113,7 +104,6 @@ def get_num_params(model):
 
 
 def get_solver(args, run_config, dataset, dataloader):
-
     model = get_model(
         args=args,
         run_config=run_config,
@@ -147,7 +137,6 @@ def get_solver(args, run_config, dataset, dataloader):
         optimizer=optimizer,
         stamp=stamp,
         val_step=args.val_step,
-        caption=not args.no_caption,
         use_tf=args.use_tf,
         lr_decay_step=LR_DECAY_STEP,
         lr_decay_rate=LR_DECAY_RATE,
@@ -174,8 +163,8 @@ def save_info(args, root, num_params, dataset):
     with open(os.path.join(root, "info.json"), "w") as f:
         json.dump(info, f, indent=4)
 
-def train(args):
 
+def train(args):
     run_config = get_config(
         exp_type=args.exp_type,
         dataset=args.dataset,
@@ -224,7 +213,7 @@ def train(args):
 
     print("Start training...\n")
     save_info(args, root, num_params, dataset)
-    solver(args.epoch, args.verbose)
+    solver(args.num_epochs, args.verbose)
 
 
 if __name__ == "__main__":
@@ -232,43 +221,17 @@ if __name__ == "__main__":
     parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     parser.add_argument("--gpu", type=str, help="gpu", default="0")
     parser.add_argument("--batch_size", type=int, help="batch size", default=16)
-    parser.add_argument("--epoch", type=int, help="number of epochs", default=50)
+    parser.add_argument("--num_epochs", type=int, help="number of epochs", default=50)
     parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
     parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
     parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--num_points", type=int, default=40000, help="Point Number [default: 40000]")
-    parser.add_argument("--num_proposals", type=int, default=256, help="Proposal number [default: 256]")
-    parser.add_argument("--num_scenes", type=int, default=-1, help="Number of scenes [default: -1]")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
-    parser.add_argument("--criterion", type=str, default="meteor",
+    parser.add_argument("--criterion", type=str, default="cider",
                         help="criterion for selecting the best model [choices: bleu-1, bleu-2, bleu-3, bleu-4, cider, rouge, meteor]")
-    parser.add_argument("--no_height", action="store_true", help="Do NOT use height signal in input.")
-    parser.add_argument("--no_augment", action="store_true", help="Do NOT use height signal in input.")
-    parser.add_argument("--no_detection", action="store_true", help="Do NOT train the detection module.")
-    parser.add_argument("--no_caption", action="store_true", help="Do NOT train the caption module.")
     parser.add_argument("--use_tf", action="store_true", help="enable teacher forcing in inference.")
-    parser.add_argument("--training_tf", type=float, default=1)
-    parser.add_argument("--use_color", action="store_true", help="Use RGB color in input.")
-    parser.add_argument("--use_normal", action="store_true", help="Use RGB color in input.")
-    parser.add_argument("--use_multiview", action="store_true", help="Use multiview images.")
-    parser.add_argument("--include_target_bbox_feats", action="store_true")
-    parser.add_argument("--use_topdown", action="store_true", help="Use top-down attention for captioning.")
-    parser.add_argument("--only_2d", action="store_true", default=False)
-    parser.add_argument("--vp_matching_train", type=str,
-                        default="/local-scratch/scan2cap_extracted/vp_matching/matches_train.json")
-    parser.add_argument("--vp_matching_val", type=str,
-                        default="/local-scratch/scan2cap_extracted/vp_matching/matches_val.json")
-    parser.add_argument('--frames_dir', nargs="?", type=str,
-                        default='/project/3dlg-hcvc/scannet_extracted/sens2frame_output')
-    parser.add_argument('--resnet_features_dir', nargs="?", type=str,
-                        default="/project/3dlg-hcvc/gholami/vp_matching/frame_features")
-    parser.add_argument('--region_features_dir', nargs="?", type=str,
-                        default="/local-scratch/scan2cap_extracted/resnet101_features")
-    parser.add_argument("--use_pretrained", type=str,
-                        help="Specify the folder name containing the pretrained detection module.")
     parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
-    parser.add_argument("--debug", action="store_true", help="Debug mode.")
+
     args = parser.parse_args()
 
     # setting

@@ -6,9 +6,11 @@
       <w>dloader</w>
       <w>dset</w>
       <w>lpath</w>
+      <w>preds</w>
       <w>referit</w>
       <w>resnet</w>
       <w>scannet</w>
+      <w>topdown</w>
     </words>
   </dictionary>
 </component>

@@ -7,68 +7,6 @@ import capeval.cider.cider as capcider
 import capeval.rouge.rouge as caprouge
 import capeval.meteor.meteor as capmeteor
 
-# def get_info_for_3d(candidates):
-#     """
-#         generates a list, containing the predictions on validation set with the following format.
-#         [
-#             {
-#                 "scene_id": "...",
-#                 "object_id": "...",
-#                 "ann_id": "...",
-#                 "camera_pose": "...",
-#                 "description": "1 caption here"
-#                 "bbox_corner": ["x_min", "y_min", "x_max", "y_max"],
-#                 "object_mask": "RLE FORMAT DETECTED OBJECT MASK",
-#                 "depth_file_name": "..."
-#             }
-#         ]
-#     :param candidates: dictionary mapping from keys to captions.
-#     :return: info_list, described above.
-#     """
-#
-#     if CONF.TYPES.IMAGE_TYPE == 'render':
-#         scanrefer = json.load(open(
-#             '/local-scratch/scan2cap_extracted/common/scanrefer/transformations/ScanRefer_filtered_fixed_viewpoint_val.json',
-#             'r'))
-#
-#     detection_pickle = '/local-scratch/scan2cap_extracted/render-based/bbox_pickle/detected_new/boxes.p'
-#     detections = pickle.load(open(detection_pickle, 'rb'))
-#     info_list = []
-#     num_failed = 0
-#     for sample_id, captions in candidates.items():
-#
-#         camera_pose = list(filter(
-#             lambda x: str(x['scene_id']) == str(scene_id) and str(x['object_id']) == str(object_id) and str(
-#                 x['ann_id']) == str(ann_id), scanrefer))
-#         assert len(camera_pose) == 1
-#         transformation = camera_pose[0]['transformation']
-#         description = candidate
-#
-#         try:
-#             detected_bbox = [int(item) for item in
-#                              detections[scene_id]['{}-{}_{}'.format(scene_id, object_id, ann_id)][0]['bbox']]
-#             detected_mask = detections[scene_id]['{}-{}_{}'.format(scene_id, object_id, ann_id)][0]['mask']
-#             depth_file_name = '{}/{}-{}_{}.depth.png'.format(scene_id, scene_id, object_id, ann_id)
-#             info_dict = {
-#                 'scene_id': scene_id,
-#                 'object_id': object_id,
-#                 'ann_id': ann_id,
-#                 'transformation': transformation,
-#                 'description': description,
-#                 'detected_bbox': detected_bbox,
-#                 'detected_mask_rle': detected_mask,
-#                 'depth_file_name': depth_file_name
-#             }
-#
-#             info_list.append(info_dict)
-#         except (IndexError, KeyError):
-#             num_failed += 1
-#             continue
-#
-#     print("ignored candidates: ", num_failed)
-#     return info_list
-#
-
 def prepare_corpus(scanrefer, max_len):
     corpus = {}
     for data in scanrefer:
