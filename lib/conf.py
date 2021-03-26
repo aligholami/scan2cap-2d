@@ -9,8 +9,12 @@ CONF.MAX_DESC_LEN = 30
 CONF.EMBEDDING_SIZE = 300
 CONF.DECODER_HIDDEN_SIZE = 512
 CONF.GLOBAL_FEATURE_SIZE = 2048
+CONF.TARGET_FEATURE_SIZE = 2052
 CONF.PROPOSAL_FEATURE_SIZE = 2052
 CONF.NUM_PROPOSALS = None
+CONF.LABEL2CLASS = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, 'door': 5,
+                    'window': 6, 'bookshelf': 7, 'picture': 8, 'counter': 9, 'desk': 10, 'curtain': 11,
+                    'refrigerator': 12, 'shower curtain': 13, 'toilet': 14, 'sink': 15, 'bathtub': 16, 'others': 17}
 
 CONF.PATH = EasyDict()
 CONF.PATH.DATA_ROOT = '/local-scratch/code/scan2cap_extracted'

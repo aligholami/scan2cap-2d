@@ -14,18 +14,16 @@ from torch.utils.data import Dataset
 import torch.utils.data as data_tools
 from itertools import permutations
 
+
 class ScanReferDataset(Dataset):
 
     def __init__(self,
-                 visual_feat,
                  split,
                  sample_list,
                  scene_list,
                  run_config
                  ):
 
-        self.visual_feat = visual_feat
-        self.add_global, self.add_target, self.add_context = self.verify_visual_feats()
         self.split = split
         self.sample_list = sample_list
         self.scene_list = scene_list
@@ -45,6 +43,7 @@ class ScanReferDataset(Dataset):
         start = time.time()
         item = self.sample_list[idx]
         sample_id = item['sample_id']
+        target_id = item['object_id']
         lang_feat = self.lang[sample_id]
         lang_ids = np.array(self.lang_ids[sample_id])
         lang_len = len(item["token"]) + 2
@@ -63,47 +62,52 @@ class ScanReferDataset(Dataset):
 
         pool_ids = []
         pool_feats = []
+        target_feat = None
         for ix, bbox_info in enumerate(box):
-            object_id = np.array(bbox_info['object_id'], dtype=np.int16)
             xyxy_bbox = np.array(
                 [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
                  math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
-            object_feature = np.concatenate((box_feat[ix], xyxy_bbox))
-            pool_feats.append(object_feature)
-            pool_ids.append(object_id)
+            object_feat = np.concatenate((box_feat[ix], xyxy_bbox))
+            object_id = np.array(bbox_info['object_id'], dtype=np.int16)
+            
+            if bbox_info['object_id'] == target_id:
+                target_feat = object_feat
+
+            else:
+                pool_feats.append(object_feat)
+                pool_ids.append(object_id)
+
+        # Happens when in votenet or mask rcnn mode (Note: we are not doing any dense captioning here).
+        # Only during eval.
+        if target_feat is None:
+            assert self.split != 'train'
+            random_bbox_index = random.sample(population=list(enumerate(box)), k=1)
+            random_bbox = box[random_bbox_index]
+            random_bbox_feat = box_feat[random_bbox_index]
+            xyxy_bbox = np.array(
+                [math.floor(random_bbox["bbox"][0]), math.floor(random_bbox["bbox"][1]),
+                 math.ceil(random_bbox["bbox"][2]), math.ceil(random_bbox["bbox"][3])], dtype=np.int16)
+            target_feat = np.concatenate((random_bbox_feat, xyxy_bbox))
+            target_id = np.array(random_bbox['object_id'], dtype=np.int16)
 
         ret = {
             'lang_feat': lang_feat,
             'lang_len': lang_len,
             'lang_ids': lang_ids,
-            'vis_feats': frame_feat,
+            't_feat': target_feat,
+            't_id': target_id,
+            'c_feat': pool_feats,
+            'c_ids': pool_ids,
+            'g_feat': frame_feat,
             'sample_ids': sample_id,
-            "pool_ids": pool_ids,
-            "pool_feats": pool_feats,
             'load_time': time.time() - start
         }
 
         return ret
 
-    def verfiy_visual_feat(self):
-        assert ('G' in self.visual_feat or 'T' in self.visual_feat or 'C' in self.visual_feat)
-        assert len(self.visual_feat) <= 3
-
-        add_global, add_target, add_context = False, False, False
-        if 'G' in visual_feat:
-            add_global = True
-
-        if 'T' in visual_feat:
-            add_target = True
-
-        if 'C' in visual_feat:
-            add_context = True
-
-        return add_global, add_target, add_context
-
     def get_raw2label(self):
         # mapping
-        scannet_labels = DC.type2class.keys()
+        scannet_labels = self.run_config.LABEL2CLASS
         scannet2label = {label: i for i, label in enumerate(scannet_labels)}
 
         lines = [line.rstrip() for line in open(self.run_config.PATH.SCANNET_V2_TSV)]
@@ -135,9 +139,7 @@ class ScanReferDataset(Dataset):
         return id2name
 
     def get_label_info(self):
-        label2class = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, 'door': 5,
-                       'window': 6, 'bookshelf': 7, 'picture': 8, 'counter': 9, 'desk': 10, 'curtain': 11,
-                       'refrigerator': 12, 'shower curtain': 13, 'toilet': 14, 'sink': 15, 'bathtub': 16, 'others': 17}
+        label2class = self.run_config.LABEL2CLASS
 
         # mapping
         scannet_labels = label2class.keys()
@@ -250,7 +252,7 @@ class ScanReferDataset(Dataset):
                 weights = {k: v for k, v in enumerate(weights)}
                 json.dump(weights, f, indent=4)
 
-    def _load_data(self):
+    def load_data(self):
         print("loading data...")
         # load language features
         self.glove = pickle.load(open(self.run_config.PATH.GLOVE_PICKLE, "rb"))
@@ -286,6 +288,8 @@ class ScanReferDataset(Dataset):
         lang_ids = torch.zeros((batch_size, len(data_dicts[0]['lang_ids'])), dtype=torch.long)
         sample_ids = []
         vis_feats = torch.zeros((batch_size, self.run_config.GLOBAL_FEATURE_SIZE), dtype=torch.float)
+        target_feat = torch.zeros((batch_size, self.run_config.TARGET_FEATURE_SIZE), dtype=torch.float)
+        target_object_id = torch.zeros((batch_size, 1), dtype=torch.int16)
         padded_proposal_feat = torch.zeros((batch_size, max_proposals_in_batch, self.run_config.PROPOSAL_FEATURE_SIZE))
         padded_proposal_object_ids = torch.zeros((batch_size, max_proposals_in_batch, 1), dtype=torch.int16)
         padded_proposal_object_ids[:, :, :] = -1
@@ -298,21 +302,23 @@ class ScanReferDataset(Dataset):
             padded_proposal_object_ids[ix, :num_proposals, :] = torch.from_numpy(
                 np.vstack(d['pool_ids']))
             vis_feats[ix, :] = torch.from_numpy(d['vis_feats']).squeeze().unsqueeze(0)
+            target_feat[ix, :] = torch.from_numpy(d['t_feat']).squeeze().unsqueeze(0)
+            target_object_id[ix, :] = torch.from_numpy((d['t_ids']))
             lang_feat[ix, :] = torch.tensor(d['lang_feat'])
             lang_len[ix, :] = torch.tensor(d['lang_len'])
             lang_ids[ix, :] = torch.tensor(d['lang_ids'])
             sample_ids.append(d['sample_id'])
-            ann_id[ix, :] = torch.tensor(d['ann_id'])
-            object_id[ix, :] = torch.tensor(d['object_id'])
             times[ix, :] = d['load_time']
 
         return {
-            "lang_feat": lang_feat,
-            "lang_len": lang_len,
-            "lang_ids": lang_ids,
-            "vis_feats": vis_feats,
-            "sample_ids": sample_ids,
-            "pool_ids": padded_proposal_object_ids,
-            "pool_feats": padded_proposal_feat,
-            "load_time": times
+            'lang_feat': lang_feat,
+            'lang_len': lang_len,
+            'lang_ids': lang_ids,
+            't_feat': target_feat,
+            't_id': target_object_id,
+            'c_feat': padded_proposal_feat,
+            'c_ids': padded_proposal_object_ids,
+            'g_feat': vis_feats,
+            'sample_ids': sample_ids,
+            'load_time': times
         }

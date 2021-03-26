@@ -28,9 +28,25 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 
 
-def get_dataloader(visual_feat, batch_size, num_workers, shuffle, sample_list, scene_list, run_config, split):
+def verify_visual_feat(visual_feat):
+    assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
+    assert len(visual_feat) <= 3
+
+    add_global, add_target, add_context = False, False, False
+    if 'G' in visual_feat:
+        add_global = True
+
+    if 'T' in visual_feat:
+        add_target = True
+
+    if 'C' in visual_feat:
+        add_context = True
+
+    return add_global, add_target, add_context
+
+
+def get_dataloader(batch_size, num_workers, shuffle, sample_list, scene_list, run_config, split):
     dataset = ScanReferDataset(
-        visual_feat=visual_feat,
         split=split,
         sample_list=sample_list,
         scene_list=scene_list,
@@ -43,25 +59,43 @@ def get_dataloader(visual_feat, batch_size, num_workers, shuffle, sample_list, s
 
 
 def get_model(args, run_config, dataset):
+    model_selection = args.model
+    feat_size = 0
+    add_global, add_target, add_context = verify_visual_feat(args.visual_feat)
 
-    if args.model == 'snt':
-        model = ShowAndTell(
-            max_desc_len=run_config.MAX_DESC_LEN,
-            training_tf=True,
-            vocabulary=dataset.vocabulary,
-            embeddings=dataset.embedding,
-            feat_size=run_config.GLOBAL_FEATURE_SIZE,
-            hidden_size=run_config.DECODER_HIDDEN_SIZE
-        )
-    elif args.model == 'satnt':
+    if add_global:
+        feat_size += run_config.GLOBAL_FEAT_SIZE
+    if add_target:
+        feat_size += run_config.TARGET_FEAT_SIZE
+
+    assert feat_size != 0
+
+    if add_context and model_selection == 'satnt':
+        print("Using Show, Attend and Tell.")
         model = ShowAttendAndTell(
+            device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
             vocabulary=dataset.vocabulary,
             embeddings=dataset.embedding,
             emb_size=run_config.EMBEDDING_SIZE,
-            feat_size=run_config.GLOBAL_FEATURE_SIZE,
+            feat_size=feat_size,
+            feat_input={'add_global': add_global, 'add_target': add_target},
             hidden_size=run_config.DECODER_HIDDEN_SIZE,
         )
+
+    elif model_selection == 'snt' and not add_context:
+        model = ShowAndTell(
+            device='cuda',
+            max_desc_len=run_config.MAX_DESC_LEN,
+            training_tf=True,
+            vocabulary=dataset.vocabulary,
+            embeddings=dataset.embedding,
+            emb_size=run_config.EMBEDDING_SIZE,
+            feat_size=feat_size,
+            feat_input={'add_global': add_global, 'add_target': add_target},
+            hidden_size=run_config.DECODER_HIDDEN_SIZE,
+        )
+
     else:
         raise NotImplementedError('Requested model {} is not implemented.'.format(dataset))
 

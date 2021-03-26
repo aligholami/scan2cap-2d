@@ -103,31 +103,45 @@ class TDBUCaptionBase(nn.Module):
 class ShowAttendAndTell(TDBUCaptionBase):
 
     def __init__(self,
+                 device,
                  max_desc_len,
                  vocabulary,
                  embeddings,
                  emb_size,
                  feat_size,
-                 hidden_size,
+                 feat_input,
+                 hidden_size
                  ):
 
         self.max_desc_len = max_desc_len
+        self.feat_size = feat_size
+        self.feat_input = feat_input
         super().__init__(
+            device=device,
             max_desc_len=max_desc_len,
             vocabulary=vocabulary,
             embeddings=embeddings,
             emb_size=emb_size,
             feat_size=feat_size,
-            hidden_size=hidden_size,
+            hidden_size=hidden_size
         )
 
-        # if self.concat_global:
-        #     self.reduce_dim = nn.Sequential(
-        #         nn.Linear(in_features=feat_size + 2048, out_features=feat_size),
-        #         nn.ReLU()
-        #     )
+        if self.feat_input['add_global']:
+            self.reduce_dim = nn.Sequential(
+                nn.Linear(in_features=feat_size, out_features=2052),
+                nn.ReLU()
+            )
+        assert self.feat_input['add_target']
 
     def forward(self, data_dict, use_tf=True, is_eval=False):
+
+        if self.feat_input['add_global']:
+            t_feat = data_dict['t_feat']  # batch_size, object_feat_size
+            g_feat = data_dict['g_feat']  # batch_size, 2048
+            t_feat = torch.cat((g_feat, t_feat), dim=1)  # batch_size
+            target_feats = self.reduce_dim(t_feat)
+            data_dict['t_feat'] = target_feats
+
         if not is_eval:
             # During training
             data_dict = self.forward_sample_batch(data_dict)
@@ -146,36 +160,23 @@ class ShowAttendAndTell(TDBUCaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        # batch_size, num_proposals, feat_size
-        # also concatenate bounding box coordinates to the object features
-        obj_feats = data_dict['proposals_feats']  # batch_size, num_objects_in_image, object_feat_size
-        # obj_feats = torch.stack([self.max_pool(data_dict["proposals_feats"][:, i, :, :]).squeeze() for i in range(data_dict["proposals_feats"].shape[1])], dim=1)
-        target_feats = data_dict['target_object_feat']  # batch_size, object_feat_size
+        c_feat = data_dict['c_feat']  # batch_size, num_objects_in_image, object_feat_size
+        t_feat = data_dict['t_feat']  # batch_size, object_feat_size
 
-        # target_feats = self.max_pool(data_dict["target_object_feat"])
-        # global_feature = data_dict["vis_feats"]
-
-        # if self.concat_global:
-        #     vis_feats = data_dict['vis_feats']  # batch_size, 2048
-        #     target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
-        #     target_feats = self.reduce_dim(target_feats)
-        #     # target_feats = self.reduce_dim(target_feats)
-
-        # come to squeeze later
         # batch_size, object_feat_size
-        target_feats = target_feats.squeeze()
+        t_feat = t_feat.squeeze()
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
         # recurrent from 0 to max_len - 2
         outputs = []
         masks = []
-        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).cuda()  # batch_size, hidden_size
-        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).cuda()  # batch_size, hidden_size
+        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
+        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
         step_id = 0
         step_input = word_embs[:, step_id]  # batch_size, emb_size
         while True:
             # feed
-            hidden_1, hidden_2, step_mask = self.step(step_input, target_feats, obj_feats, hidden_1, hidden_2)
+            hidden_1, hidden_2, step_mask = self.step(step_input, t_feat, c_feat, hidden_1, hidden_2)
             step_output = self.classifier(hidden_2)  # batch_size, num_vocabs
 
             # # predicted word
@@ -215,36 +216,24 @@ class ShowAttendAndTell(TDBUCaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        obj_feats = data_dict["proposals_feats"]  # batch_size, num_proposals, object_feat_size
-        # obj_feats = torch.stack([self.max_pool(data_dict["proposals_feats"][:, i, :, :]).squeeze() for i in range(data_dict["proposals_feats"].shape[1])], dim=1)
+        c_feat = data_dict["c_feat"]  # batch_size, num_proposals, object_feat_size
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
+        t_feat = data_dict["t_feat"]
 
         # recurrent from 0 to max_len - 2
         outputs = []
         masks = []
-        num_proposals = data_dict['proposals_feats'].shape[1]
 
-        # for prop_id in range(num_proposals):
-        # select object features
-        # target_feats = obj_feats[:, prop_id] # batch_size, emb_size
-        target_feats = data_dict["target_object_feat"]
-
-        # if self.concat_global:
-        #     vis_feats = data_dict['vis_feats']  # batch_size, 2048
-        #     target_feats = torch.cat((vis_feats, target_feats), dim=1)  # batch_size
-        #     target_feats = self.reduce_dim(target_feats)
-        #     # target_feats = self.reduce_dim(target_feats)
-
-        target_feats = target_feats.squeeze()
+        t_feat = t_feat.squeeze()
         # start recurrence
-        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).cuda()  # batch_size, hidden_size
-        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).cuda()  # batch_size, hidden_size
+        hidden_1 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
+        hidden_2 = torch.zeros(batch_size, self.hidden_size, requires_grad=True).to(self.device)  # batch_size, hidden_size
         step_id = 0
         step_input = word_embs[:, step_id]  # batch_size, emb_size
         while True:
             # feed
-            hidden_1, hidden_2, step_mask = self.step(step_input, target_feats, obj_feats, hidden_1, hidden_2)
+            hidden_1, hidden_2, step_mask = self.step(step_input, t_feat, c_feat, hidden_1, hidden_2)
             step_output = self.classifier(hidden_2)  # batch_size, num_vocabs
 
             # predicted word

@@ -2,15 +2,16 @@ import torch
 import torch.nn as nn
 import random
 
+
 class CaptionBase(nn.Module):
     def __init__(self,
                  device,
                  max_desc_len,
                  vocabulary,
                  embeddings,
-                 emb_size=300,
-                 feat_size=2048,
-                 hidden_size=512,
+                 emb_size,
+                 feat_size,
+                 hidden_size
                  ):
         super().__init__()
 
@@ -40,25 +41,37 @@ class CaptionBase(nn.Module):
 
 class ShowAndTell(CaptionBase):
     def __init__(self,
+                 device,
                  max_desc_len,
                  training_tf,
                  vocabulary,
                  embeddings,
+                 emb_size,
                  feat_size,
+                 feat_input,
                  hidden_size
                  ):
 
         super().__init__(
+            device=device,
             max_desc_len=max_desc_len,
             vocabulary=vocabulary,
             embeddings=embeddings,
+            emb_size=emb_size,
             feat_size=feat_size,
             hidden_size=hidden_size
         )
-
+        self.feat_input = feat_input
+        assert self.feat_input['add_global']
         self.training_tf = training_tf
 
     def forward(self, data_dict, use_tf=True, is_eval=False):
+
+        if self.feat_input['add_target']:
+            g_feat = data_dict["g_feat"]
+            t_feat = data_dict["t_feat"]
+            t_feat = torch.cat((g_feat, t_feat), dim=1)
+            data_dict['t_feat'] = t_feat
 
         if not is_eval:
             # During training
@@ -78,23 +91,15 @@ class ShowAndTell(CaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        # obj_feats = data_dict["aggregated_vote_features"] # batch_size, num_proposals, feat_size
-        vis_feats = data_dict["vis_feats"]
-
-        if self.include_target_bbox_feats:
-            target_object_feat = data_dict["target_object_feat"]
-            vis_feats = torch.cat((vis_feats, target_object_feat), dim=1)
+        t_feat = data_dict["t_feat"]
 
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
-
-        # transform the features
-        # print(vis_feats.shape)
-        vis_feats = self.map_feat(vis_feats.squeeze())
+        t_feat = self.map_feat(t_feat.squeeze())
 
         # recurrent from 0 to max_len - 2
         outputs = []
-        hidden = vis_feats  # batch_size, emb_size
+        hidden = t_feat  # batch_size, emb_size
         step_id = 0
         step_input = word_embs[:, step_id, :]  # batch_size, emb_size
         while True:
@@ -138,23 +143,18 @@ class ShowAndTell(CaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        vis_feats = data_dict["vis_feats"]
-
-        if self.include_target_bbox_feats:
-            target_object_feat = data_dict["target_object_feat"]
-            vis_feats = torch.cat((vis_feats, target_object_feat), dim=1)
-
+        t_feat = data_dict["t_feat"]
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
 
         # transform the features
-        vis_feats = self.map_feat(vis_feats.squeeze())  # batch_size, num_proposals, emb_size
+        t_feat = self.map_feat(t_feat.squeeze())  # batch_size, num_proposals, emb_size
 
         # recurrent from 0 to max_len - 2
         outputs = []
 
         # start recurrence
-        hidden = vis_feats  # batch_size, emb_size
+        hidden = t_feat  # batch_size, emb_size
         step_id = 0
         step_input = word_embs[:, step_id]  # batch_size, emb_size
 
