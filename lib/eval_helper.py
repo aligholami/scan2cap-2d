@@ -7,6 +7,7 @@ import capeval.cider.cider as capcider
 import capeval.rouge.rouge as caprouge
 import capeval.meteor.meteor as capmeteor
 
+
 def prepare_corpus(scanrefer, max_len):
     corpus = {}
     for data in scanrefer:
@@ -122,7 +123,6 @@ def eval_cap(_global_iter_id,
              use_tf=False,
              is_eval=True
              ):
-
     # corpus
     run_config = dataset.run_config
     corpus_path = os.path.join(run_config.PATH.OUTPUT, folder, "corpus_{}.json".format(phase))
@@ -137,9 +137,9 @@ def eval_cap(_global_iter_id,
             corpus = json.load(f)
 
     with torch.no_grad():
-        if mode == 'nonretrieval':
+        if mode == 'nret':
             candidates = feed_2d_cap(model, dataset, dataloader, use_tf, is_eval)
-        elif mode == 'retrieval':
+        elif mode == 'ret':
             candidates = feed_2d_retrieval_cap(model, dataset, dataloader)
 
     candidates = check_candidates(corpus, candidates)

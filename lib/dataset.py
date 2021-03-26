@@ -323,7 +323,7 @@ class ScanReferDataset(Dataset):
             'load_time': times
         }
 
-    def get_info_for_3d(self, candidates):
+    def get_candidate_extras(self, candidates):
         """
             generates a list, containing the predictions on validation set with the following format.
             [
