@@ -15,8 +15,10 @@ from lib.dataset import ScanReferDataset
 from lib.config import CONF
 from models.snt import ShowAndTell
 from models.tdbu import ShowAttendAndTell
+from models.retr import Retrieval2D
 from lib.conf import get_config, get_samples
 from lib.eval_helper import eval_cap
+
 
 def verify_visual_feat(visual_feat):
     assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
@@ -94,89 +96,48 @@ def get_model(args, run_config, dataset):
     return model
 
 
-def get_num_params(model):
-    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
-    num_params = int(sum([np.prod(p.size()) for p in model_parameters]))
+def get_retrieval_model(args, run_config, dataset):
+    _ = args
+    train_scene_list = list(set([item['scene_id'] for item in dataset.sample_list]))
+    scanrefer_box_features = np.load(run_config.PATH.BOX_FEAT, allow_pickle=True)
+    scanrefer_train_box_features = {k: item for k, item in scanrefer_box_features.item().items() if
+                                    k.split('-')[0] in train_scene_list and k.split('-')[1].split('_')[0] ==
+                                    k.split('.')[1]}
+    ordered_vis_feature_matrix = OrderedDict(
+        [(k, v.reshape(-1, 2048)) for k, v in scanrefer_train_box_features.items()])
 
-    return num_params
-
-
-def get_solver(args, run_config, dataset, dataloader):
-    model = get_model(
-        args=args,
-        run_config=run_config,
-        dataset=dataset['train']
+    model = Retrieval2D(
+        vis_feat_dict=ordered_vis_feature_matrix,
+        lang_ids=dataset.lang_ids
     )
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wd)
+    model.cuda()
+    model.eval()
 
-    if args.use_checkpoint:
-        print("loading checkpoint {}...".format(args.use_checkpoint))
-        stamp = args.use_checkpoint
-        root = os.path.join(CONF.PATH.OUTPUT, stamp)
-        checkpoint = torch.load(os.path.join(CONF.PATH.OUTPUT, args.use_checkpoint, "checkpoint.tar"))
-        model.load_state_dict(checkpoint["model_state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    else:
-        stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        if args.tag: stamp += "_" + args.tag.upper()
-        root = os.path.join(CONF.PATH.OUTPUT, stamp)
-        os.makedirs(root, exist_ok=True)
-
-    LR_DECAY_STEP = [3, 7, 10, 20, 50, 90]
-    LR_DECAY_RATE = 0.6
-
-    solver = Solver(
-        args=args,
-        model=model,
-        config=DC,
-        dataset=dataset,
-        dataloader=dataloader,
-        optimizer=optimizer,
-        stamp=stamp,
-        val_step=args.val_step,
-        use_tf=args.use_tf,
-        lr_decay_step=LR_DECAY_STEP,
-        lr_decay_rate=LR_DECAY_RATE,
-        criterion=args.criterion
-    )
-    num_params = get_num_params(model)
-
-    return solver, num_params, root
-
-
-def save_info(args, root, num_params, dataset):
-    info = {}
-    for key, value in vars(args).items():
-        info[key] = value
-
-    info["num_train"] = len(dataset["train"])
-    info["num_eval_train"] = len(dataset["eval"]["train"])
-    info["num_eval_val"] = len(dataset["eval"]["train"])
-    info["num_train_scenes"] = len(dataset["train"].scene_list)
-    info["num_eval_train_scenes"] = len(dataset["eval"]["train"].scene_list)
-    info["num_eval_val_scenes"] = len(dataset["eval"]["val"].scene_list)
-    info["num_params"] = num_params
-
-    with open(os.path.join(root, "info.json"), "w") as f:
-        json.dump(info, f, indent=4)
+    return model
 
 
 def eval_caption(args):
-
-def train(args):
     run_config = get_config(
         exp_type=args.exp_type,
         dataset=args.dataset,
         viewpoint=args.viewpoint,
         box=args.box
     )
-
+    train_samples, train_scenes = get_samples(mode='train', key_type=run_config.TYPES.KEY_TYPE)
     val_samples, val_scenes = get_samples(mode='val', key_type=run_config.TYPES.KEY_TYPE)
 
+    train_dset, train_dloader = get_dataloader(
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        shuffle=False,
+        sample_list=train_samples,
+        scene_list=train_scenes,
+        run_config=run_config,
+        split='train'
+    )
 
     val_dset, val_dloader = get_dataloader(
-
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         shuffle=False,
@@ -186,9 +147,15 @@ def train(args):
         split='val'
     )
 
-    model = get_model(args=args, run_config=run_config, dataset=val_dset)
+    if args.exp_type == 'ret':
+        model = get_retrieval_model(args=args, run_config=run_config, dataset=train_dset)
+    elif args.exp_type == 'nret':
+        model = get_model(args=args, run_config=run_config, dataset=val_dset)
+    else:
+        raise NotImplementedError('exp_type {} is not implemented.'.format(exp_type))
 
     # evaluate
+
     bleu, cider, rouge, meteor = eval_cap(
         _global_iter_id=0,
         model=model,
@@ -213,6 +180,7 @@ def train(args):
     print("[ROUGE-L] Mean: {:.4f}, Max: {:.4f}, Min: {:.4f}".format(rouge[0], max(rouge[1]), min(rouge[1])))
     print("[METEOR] Mean: {:.4f}, Max: {:.4f}, Min: {:.4f}".format(meteor[0], max(meteor[1]), min(meteor[1])))
     print()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
