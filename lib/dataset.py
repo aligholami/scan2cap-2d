@@ -80,22 +80,22 @@ class ScanReferDataset(Dataset):
         # Happens when in votenet or mask rcnn mode (Note: we are not doing any dense captioning here).
         # Only during eval.
         if target_feat is None:
-            assert self.split != 'train'
-            random_bbox_index = random.sample(population=list(enumerate(box)), k=1)
+            assert self.split != 'train'    # since we only train in oracle mode
+            random_bbox_index = random.sample(population=list(enumerate(box)), k=1)[0]
             random_bbox = box[random_bbox_index]
             random_bbox_feat = box_feat[random_bbox_index]
             xyxy_bbox = np.array(
                 [math.floor(random_bbox["bbox"][0]), math.floor(random_bbox["bbox"][1]),
                  math.ceil(random_bbox["bbox"][2]), math.ceil(random_bbox["bbox"][3])], dtype=np.int16)
             target_feat = np.concatenate((random_bbox_feat, xyxy_bbox))
-            target_id = np.array(random_bbox['object_id'], dtype=np.int16)
+            target_id = random_bbox['object_id']
 
         ret = {
             'lang_feat': lang_feat,
             'lang_len': lang_len,
             'lang_ids': lang_ids,
             't_feat': target_feat,
-            't_id': target_id,
+            't_id': np.array(target_id, dtype=np.int16),
             'c_feat': pool_feats,
             'c_ids': pool_ids,
             'g_feat': frame_feat,

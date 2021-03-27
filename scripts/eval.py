@@ -1,40 +1,16 @@
 import os
-import sys
-import json
-import h5py
 import argparse
-import importlib
+from collections import OrderedDict
+
 import torch
-import torch.nn as nn
 import numpy as np
-import random
 from torch.utils.data import DataLoader
-from datetime import datetime
-from copy import deepcopy
 from lib.dataset import ScanReferDataset
-from lib.config import CONF
 from models.snt import ShowAndTell
 from models.tdbu import ShowAttendAndTell
 from models.retr import Retrieval2D
-from lib.conf import get_config, get_samples
+from lib.conf import get_config, get_samples, verify_visual_feat
 from lib.eval_helper import eval_cap
-
-
-def verify_visual_feat(visual_feat):
-    assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
-    assert len(visual_feat) <= 3
-
-    add_global, add_target, add_context = False, False, False
-    if 'G' in visual_feat:
-        add_global = True
-
-    if 'T' in visual_feat:
-        add_target = True
-
-    if 'C' in visual_feat:
-        add_context = True
-
-    return add_global, add_target, add_context
 
 
 def get_dataloader(batch_size, num_workers, shuffle, sample_list, scene_list, run_config, split):
@@ -152,7 +128,7 @@ def eval_caption(args):
     elif args.exp_type == 'nret':
         model = get_model(args=args, run_config=run_config, dataset=val_dset)
     else:
-        raise NotImplementedError('exp_type {} is not implemented.'.format(exp_type))
+        raise NotImplementedError('exp_type {} is not implemented.'.format(args.exp_type))
 
     # evaluate
 

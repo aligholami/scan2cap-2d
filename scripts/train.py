@@ -1,40 +1,16 @@
 import os
-import sys
 import json
-import h5py
 import argparse
-import importlib
 import torch
 import torch.optim as optim
-import torch.nn as nn
 import numpy as np
-import random
 from torch.utils.data import DataLoader
 from datetime import datetime
-from copy import deepcopy
 from lib.dataset import ScanReferDataset
 from lib.solver import Solver
-from lib.config import CONF
 from models.snt import ShowAndTell
 from models.tdbu import ShowAttendAndTell
-from lib.conf import get_config, get_samples
-
-
-def verify_visual_feat(visual_feat):
-    assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
-    assert len(visual_feat) <= 3
-
-    add_global, add_target, add_context = False, False, False
-    if 'G' in visual_feat:
-        add_global = True
-
-    if 'T' in visual_feat:
-        add_target = True
-
-    if 'C' in visual_feat:
-        add_context = True
-
-    return add_global, add_target, add_context
+from lib.conf import get_config, get_samples, verify_visual_feat
 
 
 def get_dataloader(batch_size, num_workers, shuffle, sample_list, scene_list, run_config, split):

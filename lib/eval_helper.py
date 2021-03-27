@@ -80,6 +80,7 @@ def update_candidates(captions, candidates, data_dict, dataset):
     for batch_id in range(batch_size):
         sample_id = data_dict['sample_id'][batch_id]
         caption_decoded = decode_caption(captions[batch_id], dataset.vocabulary["idx2word"])
+
         if sample_id not in candidates:
             candidates[sample_id] = [caption_decoded]
         else:
@@ -88,14 +89,14 @@ def update_candidates(captions, candidates, data_dict, dataset):
     return candidates
 
 
-def feed_2d_cap(model, dataset, dataloader, use_tf=False, is_eval=True):
+def feed_2d_cap(model, dataset, dataloader, is_eval=True):
     candidates = {}
     for data_dict in tqdm(dataloader):
         for key in data_dict:
             if not type(data_dict[key]) == type([]):
                 data_dict[key] = data_dict[key].to('cuda')
 
-        data_dict = model(data_dict, use_tf, is_eval)
+        data_dict = model(data_dict, is_eval)
         captions = data_dict["lang_cap"].argmax(-1)  # batch_size, max_len - 1
         candidates = update_candidates(captions, candidates, data_dict, dataset)
 
@@ -120,7 +121,6 @@ def eval_cap(_global_iter_id,
              max_len,
              mode,
              extras=False,
-             use_tf=False,
              is_eval=True
              ):
     # corpus
@@ -138,7 +138,7 @@ def eval_cap(_global_iter_id,
 
     with torch.no_grad():
         if mode == 'nret':
-            candidates = feed_2d_cap(model, dataset, dataloader, use_tf, is_eval)
+            candidates = feed_2d_cap(model, dataset, dataloader, is_eval)
         elif mode == 'ret':
             candidates = feed_2d_retrieval_cap(model, dataset, dataloader)
 

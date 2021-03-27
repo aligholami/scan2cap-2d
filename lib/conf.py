@@ -2,6 +2,7 @@ import os
 import json
 from easydict import EasyDict
 
+#########################
 CONF = EasyDict()
 CONF.SCAN_WIDTH = 320
 CONF.SCAN_HEIGHT = 240
@@ -26,19 +27,12 @@ CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANS_DIR, "{}/{}_vh_clean.aggregat
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
 CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
 CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
-
-#################################
-# Question? Should they have different vocabularies?
-CONF.PATH.SCANREFER_VOCAB = None
-CONF.PATH.SCANREFER_VOCAB_WEIGHTS = None
-CONF.PATH.GLOVE_PICKLE = None
-# data path
-SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary.json")
-SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA, "ScanRefer_vocabulary_weights.json")
-GLOVE_PICKLE = os.path.join(CONF.PATH.DATA, "glove.p")
+CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary.json')
+CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
+CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.DATA_ROOT, 'glove.p')
 
 
-#################################
+#########################
 
 def adapt_sample_keys(sample_list, key_type):
     """
@@ -152,3 +146,20 @@ def get_config(exp_type, dataset, viewpoint, box):
             CONF.TYPES.KEY_TYPE = 'kk'
 
     return CONF
+
+
+def verify_visual_feat(visual_feat):
+    assert ('G' in visual_feat or 'T' in visual_feat or 'C' in visual_feat)
+    assert len(visual_feat) <= 3
+
+    add_global, add_target, add_context = False, False, False
+    if 'G' in visual_feat:
+        add_global = True
+
+    if 'T' in visual_feat:
+        add_target = True
+
+    if 'C' in visual_feat:
+        add_context = True
+
+    return add_global, add_target, add_context

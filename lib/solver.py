@@ -244,7 +244,7 @@ class Solver:
             raise ValueError("invalid phase")
 
     def _forward(self, data_dict):
-        data_dict = self.model(data_dict, use_tf=self.use_tf)
+        data_dict = self.model(data_dict)
 
         return data_dict
 
@@ -276,7 +276,6 @@ class Solver:
             dataloader=self.dataloader["eval"][phase],
             phase=phase,
             folder=self.stamp,
-            use_tf=False,
             max_len=CONF.TRAIN.MAX_DES_LEN,
             mode='2d_no_proposal'
         )
