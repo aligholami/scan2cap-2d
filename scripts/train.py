@@ -32,9 +32,9 @@ def get_model(args, run_config, dataset):
     add_global, add_target, add_context = verify_visual_feat(args.visual_feat)
 
     if add_global:
-        feat_size += run_config.GLOBAL_FEAT_SIZE
+        feat_size += run_config.GLOBAL_FEATURE_SIZE
     if add_target:
-        feat_size += run_config.TARGET_FEAT_SIZE
+        feat_size += run_config.TARGET_FEATURE_SIZE
 
     assert feat_size != 0
 
@@ -44,7 +44,7 @@ def get_model(args, run_config, dataset):
             device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
             vocabulary=dataset.vocabulary,
-            embeddings=dataset.embedding,
+            embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
             feat_input={'add_global': add_global, 'add_target': add_target},
@@ -56,7 +56,7 @@ def get_model(args, run_config, dataset):
             device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
             vocabulary=dataset.vocabulary,
-            embeddings=dataset.embedding,
+            embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
             feat_input={'add_global': add_global, 'add_target': add_target},
@@ -91,32 +91,31 @@ def get_solver(args, run_config, dataset, dataloader):
     if args.use_checkpoint:
         print("loading checkpoint {}...".format(args.use_checkpoint))
         stamp = args.use_checkpoint
-        root = os.path.join(CONF.PATH.OUTPUT, stamp)
-        checkpoint = torch.load(os.path.join(CONF.PATH.OUTPUT, args.use_checkpoint, "checkpoint.tar"))
+        root = os.path.join(run_config.PATH.OUTPUT_ROOT, stamp)
+        checkpoint = torch.load(os.path.join(run_config.PATH.OUTPUT_ROOT, args.use_checkpoint, "checkpoint.tar"))
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     else:
         stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         if args.tag: stamp += "_" + args.tag.upper()
-        root = os.path.join(CONF.PATH.OUTPUT, stamp)
+        root = os.path.join(run_config.PATH.OUTPUT_ROOT, stamp)
         os.makedirs(root, exist_ok=True)
 
     LR_DECAY_STEP = [3, 7, 10, 20, 50, 90]
     LR_DECAY_RATE = 0.6
 
     solver = Solver(
+        run_config=run_config,
         args=args,
         model=model,
-        config=DC,
         dataset=dataset,
         dataloader=dataloader,
         optimizer=optimizer,
         stamp=stamp,
         val_step=args.val_step,
-        use_tf=args.use_tf,
         lr_decay_step=LR_DECAY_STEP,
         lr_decay_rate=LR_DECAY_RATE,
-        criterion=args.criterion
+        criterion='cider'
     )
     num_params = get_num_params(model)
 
@@ -129,10 +128,8 @@ def save_info(args, root, num_params, dataset):
         info[key] = value
 
     info["num_train"] = len(dataset["train"])
-    info["num_eval_train"] = len(dataset["eval"]["train"])
-    info["num_eval_val"] = len(dataset["eval"]["train"])
+    info["num_eval_val"] = len(dataset["eval"]["val"])
     info["num_train_scenes"] = len(dataset["train"].scene_list)
-    info["num_eval_train_scenes"] = len(dataset["eval"]["train"].scene_list)
     info["num_eval_val_scenes"] = len(dataset["eval"]["val"].scene_list)
     info["num_params"] = num_params
 
@@ -185,39 +182,12 @@ def train(args):
     }
 
     print("initializing...")
-    solver, num_params, root = get_solver(args, config, dataset, dataloader)
+    solver, num_params, root = get_solver(args, run_config, dataset, dataloader)
 
     print("Start training...\n")
     save_info(args, root, num_params, dataset)
     solver(args.num_epochs, args.verbose)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--gpu", type=str, help="gpu", default="0")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=16)
-    parser.add_argument("--num_epochs", type=int, help="number of epochs", default=50)
-    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
-    parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
-    parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
-    parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--seed", type=int, default=42, help="random seed")
-    parser.add_argument("--criterion", type=str, default="cider",
-                        help="criterion for selecting the best model [choices: bleu-1, bleu-2, bleu-3, bleu-4, cider, rouge, meteor]")
-    parser.add_argument("--use_tf", action="store_true", help="enable teacher forcing in inference.")
-    parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
-
-    args = parser.parse_args()
-
-    # setting
-    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
-    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-
-    # reproducibility
-    torch.manual_seed(args.seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(args.seed)
-
+def train_main(args):
     train(args)

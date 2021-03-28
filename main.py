@@ -1,20 +1,44 @@
+import os
 import torch
 import argparse
+import numpy as np
 from lib.conf import get_config, get_samples
 from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
+from scripts.train import train_main
+from scripts.eval import eval_main
 
 
 def parse_arg():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--exp_type', default='nonretrieval', help='retrieval or nonretrieval')
-    ap.add_argument('--dataset', default='scanrefer', help='scanrefer or referit')
-    ap.add_argument('--viewpoint', default='annotated', help='annotated, estimated or topdown')
-    ap.add_argument('--box', default='oracle', help='oracle, mrcnn or votenet')
+    ap.add_argument("--exp_type", default="nret", help="retrieval or nonretrieval")
+    ap.add_argument("--dataset", default="scanrefer", help="scanrefer or referit")
+    ap.add_argument("--viewpoint", default="annotated", help="annotated, estimated or topdown")
+    ap.add_argument("--box", default="oracle", help="oracle, mrcnn or votenet")
+
+    ap.add_argument("--prep", action="store_true", default=False)
+    ap.add_argument("--train", action="store_true", default=False)
+    ap.add_argument("--model", type=str, default="snt", help='satnt or snt')
+    ap.add_argument("--visual_feat", type=str, default='G')
+    ap.add_argument("--eval", action="store_true", default=False)
+
+    ap.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
+    ap.add_argument("--gpu", type=str, help="gpu", default="0")
+    ap.add_argument("--batch_size", type=int, help="batch size", default=16)
+    ap.add_argument("--num_epochs", type=int, help="number of epochs", default=50)
+    ap.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
+    ap.add_argument("--num_workers", type=int, default=6)
+    ap.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
+    ap.add_argument("--lr", type=float, help="learning rate", default=1e-3)
+    ap.add_argument("--wd", type=float, help="weight decay", default=1e-5)
+    ap.add_argument("--seed", type=int, default=42, help="random seed")
+    ap.add_argument("--folder", type=str, required=False)
+    ap.add_argument("--shuffle", action='store_true', default=True)
+    ap.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
 
     return ap.parse_args()
 
 
-def main(exp_type, dataset, viewpoint, box):
+def prep_main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
     sample_list, scene_list = get_samples(mode='all', key_type=run_config.TYPES.KEY_TYPE)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -25,7 +49,7 @@ def main(exp_type, dataset, viewpoint, box):
     # 2. Extract global ResNet101 features
     # 3. Extract bounding boxes from aggregations and instance masks
     # 4. Extract bounding box features
-
+    
     # 2. Run on CPU
     export_bbox_pickle(
         AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
@@ -62,4 +86,22 @@ def main(exp_type, dataset, viewpoint, box):
 
 if __name__ == '__main__':
     args = parse_arg()
-    main(args.exp_type, args.dataset, args.viewpoint, args.box)
+        
+    # setting
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
+    os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
+    # reproducibility
+    torch.manual_seed(args.seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(args.seed)
+
+    if args.prep:
+        prep_main(args.exp_type, args.dataset, args.viewpoint, args.box)
+    
+    if args.train:
+        train_main(args)
+
+    if args.eval:
+        eval_main(args)

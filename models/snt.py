@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import random
 
 
 class CaptionBase(nn.Module):
@@ -65,11 +64,14 @@ class ShowAndTell(CaptionBase):
 
     def forward(self, data_dict, is_eval=False):
 
+        g_feat = data_dict["g_feat"]
         if self.feat_input['add_target']:
-            g_feat = data_dict["g_feat"]
             t_feat = data_dict["t_feat"]
             t_feat = torch.cat((g_feat, t_feat), dim=1)
-            data_dict['t_feat'] = t_feat
+            data_dict['inp_feat'] = t_feat
+
+        else:
+            data_dict['inp_feat'] = g_feat
 
         if not is_eval:
             data_dict = self.forward_train_batch(data_dict)
@@ -86,7 +88,7 @@ class ShowAndTell(CaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        t_feat = data_dict["t_feat"]
+        t_feat = data_dict["inp_feat"]
 
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
@@ -137,7 +139,7 @@ class ShowAndTell(CaptionBase):
         # unpack
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        t_feat = data_dict["t_feat"]
+        t_feat = data_dict["inp_feat"]
         num_words = des_lens[0]
         batch_size = des_lens.shape[0]
 

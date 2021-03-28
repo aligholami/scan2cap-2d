@@ -172,7 +172,7 @@ def export_image_features(
             frame_features = model(tensor_list, None, None).to('cuda')
             extracted_batches.append(
                 {
-                    'frame_features': frame_features.detach().cpu(),
+                    'frame_features': frame_features,
                     'sample_ids': sample_id_list
                 }
             )

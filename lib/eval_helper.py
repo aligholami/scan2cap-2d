@@ -2,10 +2,10 @@ import os
 import json
 import torch
 from tqdm import tqdm
-import capeval.bleu.bleu as capblue
-import capeval.cider.cider as capcider
-import capeval.rouge.rouge as caprouge
-import capeval.meteor.meteor as capmeteor
+import lib.capeval.bleu.bleu as capblue
+import lib.capeval.cider.cider as capcider
+import lib.capeval.rouge.rouge as caprouge
+import lib.capeval.meteor.meteor as capmeteor
 
 
 def prepare_corpus(scanrefer, max_len):
@@ -125,10 +125,10 @@ def eval_cap(_global_iter_id,
              ):
     # corpus
     run_config = dataset.run_config
-    corpus_path = os.path.join(run_config.PATH.OUTPUT, folder, "corpus_{}.json".format(phase))
+    corpus_path = os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "corpus_{}.json".format(phase))
     if not os.path.exists(corpus_path):
         print("preparing corpus...")
-        corpus = prepare_corpus(dataset.split_list, max_len)
+        corpus = prepare_corpus(dataset.sample_list, max_len)
         with open(corpus_path, "w") as f:
             json.dump(corpus, f, indent=4)
     else:
@@ -145,13 +145,13 @@ def eval_cap(_global_iter_id,
     candidates = check_candidates(corpus, candidates)
     candidates = organize_candidates(corpus, candidates)
 
-    pred_path = os.path.join(run_config.PATH.OUTPUT, folder, "pred_{}.json".format(phase))
+    pred_path = os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "pred_{}.json".format(phase))
     with open(pred_path, "w") as f:
         json.dump(candidates, f, indent=4)
 
     if extras:
         extras = dataset.get_candidate_extras(candidates)
-        with open(os.path.join(run_config.PATH.OUTPUT, folder, "extras_{}.json".format(phase)), "w") as f:
+        with open(os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "extras_{}.json".format(phase)), "w") as f:
             json.dump(extras, f, indent=4)
 
     # compute scores
@@ -163,7 +163,7 @@ def eval_cap(_global_iter_id,
 
     # save scores
     print("saving scores...")
-    score_path = os.path.join(run_config.PATH.OUTPUT, folder, "score_{}.json".format(phase))
+    score_path = os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "score_{}.json".format(phase))
     with open(score_path, "w") as f:
         scores = {
             "bleu-1": [float(s) for s in bleu[1][0]],

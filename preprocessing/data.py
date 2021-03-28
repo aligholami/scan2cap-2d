@@ -41,16 +41,13 @@ class FrameData(Dataset):
             boxes = torch.zeros(len(bbox_info), 4).float()
             boxes_object_ids = torch.zeros(len(bbox_info)).int()
             for i, info in enumerate(bbox_info):
-                scale_x = nw / ow
-                scale_y = nh / oh
-                xyxy_bbox_scaled = [math.floor(info["bbox"][0] * scale_x), math.floor(info["bbox"][1] * scale_y),
-                                    math.ceil(info["bbox"][2] * scale_x), math.ceil(info["bbox"][3] * scale_y)]
+                xyxy_bbox_scaled = [math.floor(info["bbox"][0]), math.floor(info["bbox"][1]),
+                                    math.ceil(info["bbox"][2]), math.ceil(info["bbox"][3])]
                 boxes[i] = torch.tensor(xyxy_bbox_scaled, dtype=torch.float)
                 object_id = info['object_id']
                 boxes_object_ids[i] = torch.tensor([object_id], dtype=torch.int16)
 
             ret = {
-                # 'failed': False,
                 'frame_tensor': frame_tensor,
                 'bbox_info': boxes,
                 'bbox_id': boxes_object_ids,
@@ -102,7 +99,7 @@ class FrameData(Dataset):
             batch_size = len(batch['sample_ids'])
             for i in range(batch_size):
                 k = '{}'.format(batch['sample_ids'][i])
-                aggregation[k] = batch['frame_features'][i]
+                aggregation[k] = batch['frame_features'][i].detach().cpu().numpy()
 
         np.save(target_npy, aggregation)
 

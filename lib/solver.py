@@ -6,11 +6,9 @@ import numpy as np
 from tensorboardX import SummaryWriter
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
-sys.path.append(os.path.join(os.getcwd(), "lib"))  # HACK add the lib folder
-from lib.config import CONF
 from lib.loss_helper import get_scene_cap_loss
 from lib.eval_helper import eval_cap
-from utils.eta import decode_eta
+from lib.eta import decode_eta
 
 
 ITER_REPORT_TEMPLATE = """
@@ -28,13 +26,6 @@ ITER_REPORT_TEMPLATE = """
 
 EPOCH_REPORT_TEMPLATE = """
 ---------------------------------summary---------------------------------
-[train] train_bleu-1: {train_bleu_1}
-[train] train_bleu-2: {train_bleu_2}
-[train] train_bleu-3: {train_bleu_3}
-[train] train_bleu-4: {train_bleu_4}
-[train] train_cider: {train_cider}
-[train] train_rouge: {train_rouge}
-[train] train_meteor: {train_meteor}
 [val]   val_bleu-1: {val_bleu_1}
 [val]   val_bleu-2: {val_bleu_2}
 [val]   val_bleu-3: {val_bleu_3}
@@ -56,12 +47,11 @@ BEST_REPORT_TEMPLATE = """
 [val]  meteor: {meteor}
 """
 
-
 class Solver:
     def __init__(self,
+                 run_config,
                  args,
                  model,
-                 config,
                  dataset,
                  dataloader,
                  optimizer,
@@ -72,12 +62,12 @@ class Solver:
                  lr_decay_rate=None,
                  criterion="meteor"):
 
+        self.run_config = run_config
         self.args = args
         self.epoch = 0  # set in __call__
         self.verbose = 0  # set in __call__
 
         self.model = model
-        self.config = config
         self.dataset = dataset
         self.dataloader = dataloader
         self.optimizer = optimizer
@@ -109,15 +99,15 @@ class Solver:
         }
 
         # tensorboard
-        os.makedirs(os.path.join(CONF.PATH.OUTPUT, stamp, "tensorboard/train"), exist_ok=True)
-        os.makedirs(os.path.join(CONF.PATH.OUTPUT, stamp, "tensorboard/val"), exist_ok=True)
+        os.makedirs(os.path.join(self.run_config.PATH.OUTPUT_ROOT, stamp, "tensorboard/train"), exist_ok=True)
+        os.makedirs(os.path.join(self.run_config.PATH.OUTPUT_ROOT, stamp, "tensorboard/val"), exist_ok=True)
         self._log_writer = {
-            "train": SummaryWriter(os.path.join(CONF.PATH.OUTPUT, stamp, "tensorboard/train")),
-            "val": SummaryWriter(os.path.join(CONF.PATH.OUTPUT, stamp, "tensorboard/val"))
+            "train": SummaryWriter(os.path.join(self.run_config.PATH.OUTPUT_ROOT, stamp, "tensorboard/train")),
+            "val": SummaryWriter(os.path.join(self.run_config.PATH.OUTPUT_ROOT, stamp, "tensorboard/val"))
         }
 
         # training log
-        log_path = os.path.join(CONF.PATH.OUTPUT, stamp, "log.txt")
+        log_path = os.path.join(self.run_config.PATH.OUTPUT_ROOT, stamp, "log.txt")
         self.log_fout = open(log_path, "a")
 
         # private
@@ -145,7 +135,7 @@ class Solver:
         self.epoch = epoch
         self.verbose = verbose
         self._total_iter["train"] = len(self.dataloader["train"]) * epoch
-        self._total_iter["val"] = (len(self.dataloader["eval"]["train"]) + len(
+        self._total_iter["val"] = (len(
             self.dataloader["eval"]["val"])) * self.val_step
 
         for epoch_id in range(epoch):
@@ -157,7 +147,7 @@ class Solver:
 
                 # save model
                 self._log("saving last models...\n")
-                model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+                model_root = os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp)
                 torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
                 # update lr scheduler
@@ -276,8 +266,8 @@ class Solver:
             dataloader=self.dataloader["eval"][phase],
             phase=phase,
             folder=self.stamp,
-            max_len=CONF.TRAIN.MAX_DES_LEN,
-            mode='2d_no_proposal'
+            max_len=self.run_config.MAX_DESC_LEN,
+            mode=self.args.exp_type
         )
 
         # dump
@@ -353,11 +343,6 @@ class Solver:
 
                     # evaluation
                     if self._global_iter_id % self.val_step == 0:
-                        # eval on train
-                        print("evaluating on train...")
-                        self._feed(self.dataloader["eval"]["train"], "train", epoch_id, True)
-                        self._dump_log("train", True)
-
                         # val
                         print("evaluating on val...")
                         self._feed(self.dataloader["eval"]["val"], "val", epoch_id, True)
@@ -388,7 +373,7 @@ class Solver:
 
                 # save model
                 self._log("saving best models...\n")
-                model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+                model_root = os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp)
                 torch.save(self.model.state_dict(), os.path.join(model_root, "model.pth"))
 
     def _finish(self, epoch_id):
@@ -402,18 +387,18 @@ class Solver:
             "model_state_dict": self.model.state_dict(),
             "optimizer_state_dict": self.optimizer.state_dict()
         }
-        checkpoint_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+        checkpoint_root = os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp)
         torch.save(save_dict, os.path.join(checkpoint_root, "checkpoint.tar"))
 
         # save model
         self._log("saving last models...\n")
-        model_root = os.path.join(CONF.PATH.OUTPUT, self.stamp)
+        model_root = os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp)
         torch.save(self.model.state_dict(), os.path.join(model_root, "model_last.pth"))
 
         # export
         for phase in ["train", "val"]:
             self._log_writer[phase].export_scalars_to_json(
-                os.path.join(CONF.PATH.OUTPUT, self.stamp, "tensorboard/{}".format(phase), "all_scalars.json"))
+                os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp, "tensorboard/{}".format(phase), "all_scalars.json"))
 
     def _train_report(self, epoch_id):
         # compute ETA
@@ -426,8 +411,6 @@ class Solver:
         mean_train_time = np.mean(iter_time)
         mean_est_val_time = np.mean([fetch + forward for fetch, forward in zip(fetch_time, forward_time)])
         eta_sec = (self._total_iter["train"] - self._global_iter_id - 1) * mean_train_time
-        eta_sec += len(self.dataloader["eval"]["train"]) * np.ceil(
-            self._total_iter["val"] / self.val_step) * mean_est_val_time
         eta_sec += len(self.dataloader["eval"]["val"]) * np.ceil(
             self._total_iter["val"] / self.val_step) * mean_est_val_time
         eta = decode_eta(eta_sec)
@@ -454,13 +437,6 @@ class Solver:
     def _epoch_report(self, epoch_id):
         self._log("epoch [{}/{}] done...".format(epoch_id + 1, self.epoch))
         epoch_report = self.__epoch_report_template.format(
-            train_bleu_1=round(self.log["train"]["bleu-1"], 5),
-            train_bleu_2=round(self.log["train"]["bleu-2"], 5),
-            train_bleu_3=round(self.log["train"]["bleu-3"], 5),
-            train_bleu_4=round(self.log["train"]["bleu-4"], 5),
-            train_cider=round(self.log["train"]["cider"], 5),
-            train_rouge=round(self.log["train"]["rouge"], 5),
-            train_meteor=round(self.log["train"]["meteor"], 5),
             val_bleu_1=round(self.log["val"]["bleu-1"], 5),
             val_bleu_2=round(self.log["val"]["bleu-2"], 5),
             val_bleu_3=round(self.log["val"]["bleu-3"], 5),
@@ -484,5 +460,5 @@ class Solver:
             meteor=round(self.best["meteor"], 5)
         )
         self._log(best_report)
-        with open(os.path.join(CONF.PATH.OUTPUT, self.stamp, "best.txt"), "w") as f:
+        with open(os.path.join(self.run_config.PATH.OUTPUT_ROOT, self.stamp, "best.txt"), "w") as f:
             f.write(best_report)

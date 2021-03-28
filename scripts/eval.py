@@ -142,7 +142,6 @@ def eval_caption(args):
         max_len=run_config.MAX_DESC_LEN,
         mode=args.exp_type,
         extras=args.extras,
-        use_tf=False,
         is_eval=True
     )
 
@@ -157,27 +156,7 @@ def eval_caption(args):
     print("[METEOR] Mean: {:.4f}, Max: {:.4f}, Min: {:.4f}".format(meteor[0], max(meteor[1]), min(meteor[1])))
     print()
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--folder", type=str, required=True)
-    parser.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
-    parser.add_argument("--exp_type", type=str, default='nret', help='nret or ret')
-    parser.add_argument("--gpu", type=str, help="gpu", default="0")
-    parser.add_argument("--batch_size", type=int, help="batch size", default=16)
-    parser.add_argument("--num_epochs", type=int, help="number of epochs", default=50)
-    parser.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
-    parser.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
-    parser.add_argument("--lr", type=float, help="learning rate", default=1e-3)
-    parser.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    parser.add_argument("--seed", type=int, default=42, help="random seed")
-    parser.add_argument("--criterion", type=str, default="cider",
-                        help="criterion for selecting the best model [choices: bleu-1, bleu-2, bleu-3, bleu-4, cider, rouge, meteor]")
-    parser.add_argument("--use_tf", action="store_true", help="enable teacher forcing in inference.")
-    parser.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
-
-    args = parser.parse_args()
-
+def eval_main(args):
     # setting
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1"

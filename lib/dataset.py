@@ -54,11 +54,11 @@ class ScanReferDataset(Dataset):
             box = box[sample_id]  # Returns a list of dict
 
         # Maps object ids (oracle or detected) to their bounding box features
-        with np.load(self.run_config.PATH.BOX_FEAT, allow_pickle=True) as all_box_feats:
-            box_feat = all_box_feats[sample_id]
+        all_box_feats = np.load(self.run_config.PATH.BOX_FEAT, allow_pickle=True).item()
+        box_feat = all_box_feats[sample_id]
 
-        with np.load(self.run_config.PATH.FRAME_FEAT, allow_pickle=True) as all_frame_feats:
-            frame_feat = all_frame_feats[sample_id]
+        all_frame_feats = np.load(self.run_config.PATH.IMAGE_FEAT, allow_pickle=True).item()
+        frame_feat = all_frame_feats[sample_id]
 
         pool_ids = []
         pool_feats = []
@@ -67,10 +67,11 @@ class ScanReferDataset(Dataset):
             xyxy_bbox = np.array(
                 [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
                  math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
-            object_feat = np.concatenate((box_feat[ix], xyxy_bbox))
             object_id = np.array(bbox_info['object_id'], dtype=np.int16)
-            
-            if bbox_info['object_id'] == target_id:
+            # print("looking for {} in {}".format(ix, box_feat))
+            object_feat = np.concatenate((box_feat[str(object_id)], xyxy_bbox))
+
+            if str(bbox_info['object_id']) == str(target_id):
                 target_feat = object_feat
 
             else:
@@ -96,10 +97,10 @@ class ScanReferDataset(Dataset):
             'lang_ids': lang_ids,
             't_feat': target_feat,
             't_id': np.array(target_id, dtype=np.int16),
-            'c_feat': pool_feats,
+            'c_feats': pool_feats,
             'c_ids': pool_ids,
             'g_feat': frame_feat,
-            'sample_ids': sample_id,
+            'sample_id': sample_id,
             'load_time': time.time() - start
         }
 
@@ -237,11 +238,11 @@ class ScanReferDataset(Dataset):
                 weights = json.load(f)
                 self.weights = np.array([v for _, v in weights.items()])
         else:
+
             all_tokens = []
-            for scene_id in self.lang_ids.keys():
-                for object_id in self.lang_ids[scene_id].keys():
-                    for ann_id in self.lang_ids[scene_id][object_id].keys():
-                        all_tokens += self.lang_ids[scene_id][object_id][ann_id].astype(int).tolist()
+
+            for sample_id in self.lang_ids.keys():
+                all_tokens += self.lang_ids[sample_id].astype(int).tolist()
 
             word_count = Counter(all_tokens)
             word_count = sorted([(k, v) for k, v in word_count.items()], key=lambda x: x[0])
@@ -279,8 +280,8 @@ class ScanReferDataset(Dataset):
         self.raw2label = self.get_raw2label()
 
     def collate_fn(self, data):
-        data_dicts = sorted(data, key=lambda d: len(d['pool_ids']), reverse=True)
-        max_proposals_in_batch = len(data_dicts[0]['pool_ids'])
+        data_dicts = sorted(data, key=lambda d: len(d['c_ids']), reverse=True)
+        max_proposals_in_batch = len(data_dicts[0]['c_ids'])
         batch_size = len(data_dicts)
         lang_feat = torch.zeros((batch_size, len(data_dicts[0]['lang_feat']), len(data_dicts[0]['lang_feat'][0])),
                                 dtype=torch.float32)
@@ -296,14 +297,14 @@ class ScanReferDataset(Dataset):
         times = torch.zeros((batch_size, 1))
 
         for ix, d in enumerate(data_dicts):
-            num_proposals = len(d['pool_ids'])
+            num_proposals = len(d['c_ids'])
             padded_proposal_feat[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['pool_feats'])).unsqueeze(0)
+                np.vstack(d['c_feats'])).unsqueeze(0)
             padded_proposal_object_ids[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['pool_ids']))
-            vis_feats[ix, :] = torch.from_numpy(d['vis_feats']).squeeze().unsqueeze(0)
+                np.vstack(d['c_ids']))
+            vis_feats[ix, :] = torch.from_numpy(d['g_feat']).squeeze().unsqueeze(0)
             target_feat[ix, :] = torch.from_numpy(d['t_feat']).squeeze().unsqueeze(0)
-            target_object_id[ix, :] = torch.from_numpy((d['t_ids']))
+            target_object_id[ix, :] = torch.from_numpy((d['t_id']))
             lang_feat[ix, :] = torch.tensor(d['lang_feat'])
             lang_len[ix, :] = torch.tensor(d['lang_len'])
             lang_ids[ix, :] = torch.tensor(d['lang_ids'])
@@ -316,10 +317,10 @@ class ScanReferDataset(Dataset):
             'lang_ids': lang_ids,
             't_feat': target_feat,
             't_id': target_object_id,
-            'c_feat': padded_proposal_feat,
+            'c_feats': padded_proposal_feat,
             'c_ids': padded_proposal_object_ids,
             'g_feat': vis_feats,
-            'sample_ids': sample_ids,
+            'sample_id': sample_ids,
             'load_time': times
         }
 
@@ -355,9 +356,7 @@ class ScanReferDataset(Dataset):
             mask = box['mask']
             depth_file_name = '{}.depth.png'.format(sample_id)
             info_dict = {
-                'scene_id': scene_id,
-                'object_id': object_id,
-                'ann_id': ann_id,
+                'sample_id': sample_id,
                 'transformation': transformation,
                 'description': caption,
                 'detected_bbox': bbox,
