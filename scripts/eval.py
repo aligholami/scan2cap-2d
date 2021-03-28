@@ -115,7 +115,10 @@ def eval_caption(args):
     )
     train_samples, train_scenes = get_samples(mode='train', key_type=run_config.TYPES.KEY_TYPE)
     val_samples, val_scenes = get_samples(mode='val', key_type=run_config.TYPES.KEY_TYPE)
-
+    
+    print('Number of training samples: ', len(train_samples))
+    print('Number of validation samples: ', len(val_samples))
+    
     train_dset, train_dloader = get_dataloader(
         batch_size=args.batch_size,
         num_workers=args.num_workers,
