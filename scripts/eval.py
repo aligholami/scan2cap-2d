@@ -1,7 +1,7 @@
 import os
 import argparse
 from collections import OrderedDict
-
+import datetime
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
@@ -72,19 +72,27 @@ def get_model(args, run_config, dataset):
     return model
 
 
-def get_retrieval_model(args, run_config, dataset):
+def get_retrieval_model(args, run_config, train_dataset):
     _ = args
-    train_scene_list = list(set([item['scene_id'] for item in dataset.sample_list]))
-    scanrefer_box_features = np.load(run_config.PATH.BOX_FEAT, allow_pickle=True)
-    scanrefer_train_box_features = {k: item for k, item in scanrefer_box_features.item().items() if
-                                    k.split('-')[0] in train_scene_list and k.split('-')[1].split('_')[0] ==
-                                    k.split('.')[1]}
+
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if args.tag: stamp += "_" + args.tag.upper()
+    retrieval_directory = os.path.join(run_config.PATH.OUTPUT_ROOT, stamp)
+    os.makedirs(retrieval_directory, exist_ok=True)
+
+    feat_size = run_config.TARGET_FEATURE_SIZE
+    train_scene_list = train_dataset.scene_list
+    scanrefer_box_features = np.load(run_config.PATH.BOX_FEAT, allow_pickle=True).item()
+    scanrefer_train_box_features = {k: item for k, item in scanrefer_box_features.items() if
+                                    k.split('-')[0] in train_scene_list}
     ordered_vis_feature_matrix = OrderedDict(
-        [(k, v.reshape(-1, 2048)) for k, v in scanrefer_train_box_features.items()])
+        [(k, v.reshape(-1, feat_size)) for k, v in scanrefer_train_box_features.items()])
 
     model = Retrieval2D(
+        db_path=os.path.join(retrieval_directory, 'train_memory_map.dat'),
+        feat_size=feat_size,
         vis_feat_dict=ordered_vis_feature_matrix,
-        lang_ids=dataset.lang_ids
+        lang_ids=train_dataset.lang_ids
     )
 
     model.cuda()
