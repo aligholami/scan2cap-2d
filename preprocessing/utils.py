@@ -97,7 +97,7 @@ def export_bbox_pickle(
 
         try:
             label_img = np.array(
-                Image.open(os.path.join(INSTANCE_MASK_PATH, scene_id, '{}.objectId.encoded.png'.format(sample_id))))
+                Image.open(os.path.join(INSTANCE_MASK_PATH.format(scene_id, sample_id))))
             scale_x = RESIZE[0] // label_img.shape[0]
             scale_y = RESIZE[1] // label_img.shape[1]
         except FileNotFoundError as fnfe:

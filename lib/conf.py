@@ -117,29 +117,29 @@ def get_config(exp_type, dataset, viewpoint, box):
     if selected_dataset == 'scanrefer':
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'annotated-based/resnet101_features.npy')
+            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'tatt-based/resnet101_features.npy')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks')
-            CONF.PATH.BOX = os.path.join(data_root, 'annotated-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'annotated-based/box_feat/box_feat.npy')
+            CONF.PATH.BOX = os.path.join(data_root, 'tatt-based/box/box.p')
+            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'tatt-based/box_feat/box_feat.npy')
             CONF.TYPES.KEY_TYPE = 'kkk'
 
         if selected_viewpoint == 'estimated':
             assert selected_box_mode == 'votenet'
             CONF.PATH.IMAGE = os.path.join(data_root, 'estimated-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'estimated-based/resnet101_features.npy')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'estimated-based/instance-masks')
-            CONF.PATH.BOX = os.path.join(data_root, 'estimated-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'estimated-based/box_feat/box_feat.npy')
+            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'test-based/resnet101_features.npy')
+            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'estimated-based/instance-masks/{}/{}.objectId.encoded.png')
+            CONF.PATH.BOX = os.path.join(data_root, 'test-based/box/box.p')
+            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'test-based/box_feat/box_feat.npy')
             CONF.PATH.VOTENET_PROJECTIONS = os.path.join(data_root, 'estimated-based/predicted_viewpoints'
                                                                     '/votenet_estimated_viewpoint_val.json')
             CONF.TYPES.KEY_TYPE = 'kk'
 
         if selected_viewpoint == 'topdown':
             CONF.PATH.IMAGE = os.path.join(data_root, 'topdown-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'topdown-based/resnet101_features.npy')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks')
-            CONF.PATH.BOX = os.path.join(data_root, 'topdown-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'topdown-based/box_feat/box_feat.npy')
+            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'td-based/resnet101_features.npy')
+            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks/{}/{}.vertexAttribute.encoded.png')
+            CONF.PATH.BOX = os.path.join(data_root, 'td-based/box/box.p')
+            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'td-based/box_feat/box_feat.npy')
             CONF.TYPES.KEY_TYPE = 'k'
 
     if selected_dataset == 'referit':

@@ -34,7 +34,7 @@ def parse_arg():
     ap.add_argument("--folder", type=str, required=False)
     ap.add_argument("--shuffle", action='store_true', default=True)
     ap.add_argument("--use_checkpoint", type=str, help="Specify the checkpoint root", default="")
-
+    ap.add_argument("--extras", action="store_true", default=False)
     return ap.parse_args()
 
 

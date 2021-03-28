@@ -32,9 +32,9 @@ def get_model(args, run_config, dataset):
     add_global, add_target, add_context = verify_visual_feat(args.visual_feat)
 
     if add_global:
-        feat_size += run_config.GLOBAL_FEAT_SIZE
+        feat_size += run_config.GLOBAL_FEATURE_SIZE
     if add_target:
-        feat_size += run_config.TARGET_FEAT_SIZE
+        feat_size += run_config.TARGET_FEATURE_SIZE
 
     assert feat_size != 0
 
@@ -44,7 +44,7 @@ def get_model(args, run_config, dataset):
             device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
             vocabulary=dataset.vocabulary,
-            embeddings=dataset.embedding,
+            embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
             feat_input={'add_global': add_global, 'add_target': add_target},
@@ -56,7 +56,7 @@ def get_model(args, run_config, dataset):
             device='cuda',
             max_desc_len=run_config.MAX_DESC_LEN,
             vocabulary=dataset.vocabulary,
-            embeddings=dataset.embedding,
+            embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
             feat_input={'add_global': add_global, 'add_target': add_target},
