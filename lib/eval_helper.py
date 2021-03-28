@@ -75,7 +75,11 @@ def organize_candidates(corpus, candidates):
 
 
 def update_candidates(captions, candidates, data_dict, dataset):
-    batch_size, _ = captions.shape
+    if isinstance(captions, list):
+        batch_size = len(captions)
+        
+    else:
+        batch_size, _ = captions.shape
     # dump generated captions
     for batch_id in range(batch_size):
         sample_id = data_dict['sample_id'][batch_id]

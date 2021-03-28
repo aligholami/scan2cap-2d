@@ -13,7 +13,7 @@ from collections import Counter
 from torch.utils.data import Dataset
 import torch.utils.data as data_tools
 from itertools import permutations
-
+import pdb
 
 class ScanReferDataset(Dataset):
 
@@ -63,46 +63,51 @@ class ScanReferDataset(Dataset):
         pool_ids = []
         pool_feats = []
         target_feat = None
-        for ix, bbox_info in enumerate(box):
-            xyxy_bbox = np.array(
-                [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
-                 math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
-            object_id = np.array(bbox_info['object_id'], dtype=np.int16)
-            # print("looking for {} in {}".format(ix, box_feat))
-            object_feat = np.concatenate((box_feat[str(object_id)], xyxy_bbox))
+        if len(box) >= 2:
+            for ix, bbox_info in enumerate(box):
+                xyxy_bbox = np.array(
+                    [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
+                    math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
+                object_id = np.array(bbox_info['object_id'], dtype=np.int16)
+                # print("looking for {} in {}".format(ix, box_feat))
+                object_feat = np.concatenate((box_feat[str(object_id)], xyxy_bbox))
 
-            if str(bbox_info['object_id']) == str(target_id):
-                target_feat = object_feat
+                if str(bbox_info['object_id']) == str(target_id):
+                    target_feat = object_feat
 
-            else:
-                pool_feats.append(object_feat)
-                pool_ids.append(object_id)
+                else:
+                    pool_feats.append(object_feat)
+                    pool_ids.append(object_id)
 
-        # Happens when in votenet or mask rcnn mode (Note: we are not doing any dense captioning here).
-        # Only during eval.
-        if target_feat is None:
-            assert self.split != 'train'    # since we only train in oracle mode
-            random_bbox_index = random.sample(population=list(enumerate(box)), k=1)[0]
-            random_bbox = box[random_bbox_index]
-            random_bbox_feat = box_feat[random_bbox_index]
-            xyxy_bbox = np.array(
-                [math.floor(random_bbox["bbox"][0]), math.floor(random_bbox["bbox"][1]),
-                 math.ceil(random_bbox["bbox"][2]), math.ceil(random_bbox["bbox"][3])], dtype=np.int16)
-            target_feat = np.concatenate((random_bbox_feat, xyxy_bbox))
-            target_id = random_bbox['object_id']
+            # Happens when in votenet or mask rcnn mode (Note: we are not doing any dense captioning here).
+            # Only during eval.
+            if target_feat is None:
+                assert self.split != 'train'    # since we only train in oracle mode
+                random_bbox_index = random.sample(population=list(enumerate(box)), k=1)[0][0]
+                random_bbox = box[random_bbox_index]
+                random_bbox_feat = box_feat[str(random_bbox['object_id'])]
+                xyxy_bbox = np.array(
+                    [math.floor(random_bbox["bbox"][0]), math.floor(random_bbox["bbox"][1]),
+                    math.ceil(random_bbox["bbox"][2]), math.ceil(random_bbox["bbox"][3])], dtype=np.int16)
+                target_feat = np.concatenate((random_bbox_feat, xyxy_bbox))
+                target_id = random_bbox['object_id']
 
-        ret = {
-            'lang_feat': lang_feat,
-            'lang_len': lang_len,
-            'lang_ids': lang_ids,
-            't_feat': target_feat,
-            't_id': np.array(target_id, dtype=np.int16),
-            'c_feats': pool_feats,
-            'c_ids': pool_ids,
-            'g_feat': frame_feat,
-            'sample_id': sample_id,
-            'load_time': time.time() - start
-        }
+            ret = {
+                'failed': False,
+                'lang_feat': lang_feat,
+                'lang_len': lang_len,
+                'lang_ids': lang_ids,
+                't_feat': target_feat,
+                't_id': np.array(target_id, dtype=np.int16),
+                'c_feats': pool_feats,
+                'c_ids': pool_ids,
+                'g_feat': frame_feat,
+                'sample_id': sample_id,
+                'load_time': time.time() - start
+            }
+
+        else:
+            ret = {'failed': True}
 
         return ret
 
@@ -280,6 +285,7 @@ class ScanReferDataset(Dataset):
         self.raw2label = self.get_raw2label()
 
     def collate_fn(self, data):
+        data = list(filter(lambda x: x['failed'] == False, data))
         data_dicts = sorted(data, key=lambda d: len(d['c_ids']), reverse=True)
         max_proposals_in_batch = len(data_dicts[0]['c_ids'])
         batch_size = len(data_dicts)

@@ -26,14 +26,14 @@ class Retrieval2D(nn.Module):
 
     def get_best_rank_id(self, vis_feat):
         val_memory_map = vis_feat.repeat(self.n_repeats, 1)
-        train_memory_map = self.memmap_obj_train
+        train_memory_map = self.train_memory_map
         cosine_ranked = np.einsum('xy,xy->x', val_memory_map, train_memory_map) / (
                     norm(val_memory_map, axis=1) * norm(train_memory_map, axis=1))
         sample_id = list(self.vis_feat_dict.keys())[np.argmax(cosine_ranked)]
         return sample_id
 
     def forward(self, data_dict):
-        vis_feats = data_dict['t_feat']  # batch_size, feat_size
+        vis_feats = data_dict['t_feat'][:, :-4]     # Ignore the concatenated bbox
         batch_size = vis_feats.shape[0]
 
         batch_captions = []

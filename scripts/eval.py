@@ -1,7 +1,7 @@
 import os
 import argparse
 from collections import OrderedDict
-import datetime
+from datetime import datetime
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
@@ -80,25 +80,30 @@ def get_retrieval_model(args, run_config, train_dataset):
     retrieval_directory = os.path.join(run_config.PATH.OUTPUT_ROOT, stamp)
     os.makedirs(retrieval_directory, exist_ok=True)
 
-    feat_size = run_config.TARGET_FEATURE_SIZE
+    feat_size = run_config.TARGET_FEATURE_SIZE - 4
     train_scene_list = train_dataset.scene_list
     scanrefer_box_features = np.load(run_config.PATH.BOX_FEAT, allow_pickle=True).item()
-    scanrefer_train_box_features = {k: item for k, item in scanrefer_box_features.items() if
-                                    k.split('-')[0] in train_scene_list}
-    ordered_vis_feature_matrix = OrderedDict(
-        [(k, v.reshape(-1, feat_size)) for k, v in scanrefer_train_box_features.items()])
+    # only take features that are in the train set and describe the target object.
+    ordered_train_feature_matrix = []
+    for sample_id, sample_dict in scanrefer_box_features.items():
+        for object_id, object_feature in sample_dict.items():
+            k = sample_id
+            if k.split('-')[0] in train_scene_list and k.split('-')[1].split('_')[0] == object_id:
+                ordered_train_feature_matrix.append((k, object_feature.reshape(-1, feat_size)))
+
+    ordered_train_feature_matrix = OrderedDict(ordered_train_feature_matrix)
 
     model = Retrieval2D(
         db_path=os.path.join(retrieval_directory, 'train_memory_map.dat'),
         feat_size=feat_size,
-        vis_feat_dict=ordered_vis_feature_matrix,
+        vis_feat_dict=ordered_train_feature_matrix,
         lang_ids=train_dataset.lang_ids
     )
 
     model.cuda()
     model.eval()
 
-    return model
+    return model, retrieval_directory
 
 
 def eval_caption(args):
@@ -131,22 +136,27 @@ def eval_caption(args):
         split='val'
     )
 
+    retr_dir = None
+    folder = args.folder
     if args.exp_type == 'ret':
-        model = get_retrieval_model(args=args, run_config=run_config, dataset=train_dset)
+        model, retr_dir = get_retrieval_model(args=args, run_config=run_config, train_dataset=train_dset)
     elif args.exp_type == 'nret':
         model = get_model(args=args, run_config=run_config, dataset=val_dset)
     else:
         raise NotImplementedError('exp_type {} is not implemented.'.format(args.exp_type))
 
     # evaluate
-
+    if retr_dir is not None:
+        folder = retr_dir
+    
+    assert folder is not None
     bleu, cider, rouge, meteor = eval_cap(
         _global_iter_id=0,
         model=model,
         dataset=val_dset,
         dataloader=val_dloader,
         phase='val',
-        folder=args.folder,
+        folder=folder,
         max_len=run_config.MAX_DESC_LEN,
         mode=args.exp_type,
         extras=args.extras,
