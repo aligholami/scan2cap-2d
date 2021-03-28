@@ -118,7 +118,7 @@ def get_config(exp_type, dataset, viewpoint, box):
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
             CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'tatt-based/resnet101_features.npy')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks')
+            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks/{}/{}.objectId.encoded.png')
             CONF.PATH.BOX = os.path.join(data_root, 'tatt-based/box/box.p')
             CONF.PATH.BOX_FEAT = os.path.join(data_root, 'tatt-based/box_feat/box_feat.npy')
             CONF.TYPES.KEY_TYPE = 'kkk'

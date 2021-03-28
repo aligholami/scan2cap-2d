@@ -25,10 +25,10 @@ def get_dataloader(batch_size, num_workers, shuffle, sample_list, scene_list, ru
 
     return dataset, dataloader
 
-
 def get_model(args, run_config, dataset):
     model_selection = args.model
     feat_size = 0
+    context_size = run_config.PROPOSAL_FEATURE_SIZE
     add_global, add_target, add_context = verify_visual_feat(args.visual_feat)
 
     if add_global:
@@ -47,6 +47,7 @@ def get_model(args, run_config, dataset):
             embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
+            context_size=context_size,
             feat_input={'add_global': add_global, 'add_target': add_target},
             hidden_size=run_config.DECODER_HIDDEN_SIZE,
         )

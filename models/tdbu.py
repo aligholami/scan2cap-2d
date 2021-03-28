@@ -109,12 +109,14 @@ class ShowAttendAndTell(TDBUCaptionBase):
                  embeddings,
                  emb_size,
                  feat_size,
+                 context_size,
                  feat_input,
                  hidden_size
                  ):
 
         self.max_desc_len = max_desc_len
         self.feat_size = feat_size
+        self.context_size = context_size
         self.feat_input = feat_input
         super().__init__(
             device=device,
@@ -122,15 +124,16 @@ class ShowAttendAndTell(TDBUCaptionBase):
             vocabulary=vocabulary,
             embeddings=embeddings,
             emb_size=emb_size,
-            feat_size=feat_size,
+            feat_size=context_size,
             hidden_size=hidden_size
         )
 
         if self.feat_input['add_global']:
             self.reduce_dim = nn.Sequential(
-                nn.Linear(in_features=feat_size, out_features=2052),
+                nn.Linear(in_features=feat_size, out_features=self.context_size),
                 nn.ReLU()
             )
+
         assert self.feat_input['add_target']
 
     def forward(self, data_dict, is_eval=False):
@@ -139,8 +142,8 @@ class ShowAttendAndTell(TDBUCaptionBase):
             t_feat = data_dict['t_feat']  # batch_size, object_feat_size
             g_feat = data_dict['g_feat']  # batch_size, 2048
             t_feat = torch.cat((g_feat, t_feat), dim=1)  # batch_size
-            target_feats = self.reduce_dim(t_feat)
-            data_dict['t_feat'] = target_feats
+            t_feat = self.reduce_dim(t_feat)
+            data_dict['t_feat'] = t_feat
 
         if not is_eval:
             # During training
@@ -157,7 +160,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
         """
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        c_feat = data_dict['c_feat']  # batch_size, num_objects_in_image, object_feat_size
+        c_feat = data_dict['c_feats']  # batch_size, num_objects_in_image, object_feat_size
         t_feat = data_dict['t_feat']  # batch_size, object_feat_size
 
         # batch_size, object_feat_size
@@ -209,7 +212,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
         """
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
-        c_feat = data_dict["c_feat"]  # batch_size, num_proposals, object_feat_size
+        c_feat = data_dict["c_feats"]  # batch_size, num_proposals, object_feat_size
         batch_size = des_lens.shape[0]
         t_feat = data_dict["t_feat"]
 
