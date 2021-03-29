@@ -66,6 +66,21 @@ def get_model(args, run_config, dataset):
     else:
         raise NotImplementedError('Requested model {} is not implemented.'.format(dataset))
 
+    # Load checkpoint
+    if args.ckpt_path is not None:
+        checkpoint = torch.load(args.ckpt_path)
+        # print(checkpoint.keys())
+        try:
+            model.load_state_dict(checkpoint, strict=False)
+            print("Loaded checkpoint from {}".format(args.ckpt_path))
+        except KeyError:
+            print("Checkpoint has the following keys available: ")
+            print(checkpoint.keys())
+            exit(0)
+    else:
+        print("No checkpoint specified. Please specify one by --ckpt_path.")
+        exit(0)
+
     # to CUDA
     model = model.cuda()
 

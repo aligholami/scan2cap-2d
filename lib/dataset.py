@@ -48,14 +48,16 @@ class ScanReferDataset(Dataset):
         lang_ids = np.array(self.lang_ids[sample_id])
         lang_len = len(item["token"]) + 2
         lang_len = lang_len if lang_len <= self.run_config.MAX_DESC_LEN + 2 else self.run_config.MAX_DESC_LEN + 2
-
+        
         with open(self.run_config.PATH.BOX, 'rb') as f:
             box = pickle.load(f)
             box = box[sample_id]  # Returns a list of dict
 
         # Maps object ids (oracle or detected) to their bounding box features
+        print("loading featss {}".format(idx))
         all_box_feats = np.load(self.run_config.PATH.BOX_FEAT, allow_pickle=True).item()
         box_feat = all_box_feats[sample_id]
+        print("done")
 
         all_frame_feats = np.load(self.run_config.PATH.IMAGE_FEAT, allow_pickle=True).item()
         frame_feat = all_frame_feats[sample_id]
@@ -204,9 +206,8 @@ class ScanReferDataset(Dataset):
         if os.path.exists(self.run_config.PATH.SCANREFER_VOCAB):
             self.vocabulary = json.load(open(self.run_config.PATH.SCANREFER_VOCAB))
             print("Loaded the existing vocabulary.")
-            print("Number of keys in the vocab: {}".format(len(self.vocabulary['idx2word'].keys())))
-
         else:
+            print("Resetting vocabulary.")
             if self.split == "train":
                 all_words = chain(*[data["token"][:self.run_config.MAX_DESC_LEN] for data in self.sample_list])
                 word_counter = Counter(all_words)
@@ -236,6 +237,8 @@ class ScanReferDataset(Dataset):
                 json.dump(vocab, open(self.run_config.PATH.SCANREFER_VOCAB, "w"), indent=4)
 
                 self.vocabulary = vocab
+
+        print("Number of keys in the vocab: {}".format(len(self.vocabulary['idx2word'].keys())))
 
     def build_frequency(self):
         if os.path.exists(self.run_config.PATH.SCANREFER_VOCAB_WEIGHTS):

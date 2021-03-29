@@ -20,16 +20,17 @@ CONF.LABEL2CLASS = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, '
 CONF.PATH = EasyDict()
 CONF.PATH.DATA_ROOT = '/local-scratch/code/scan2cap_extracted'
 CONF.PATH.CODE_ROOT = '/local-scratch/projects/scan2cap-2d'
+CONF.PATH.OLD_DATA_ROOT = '/local-scratch/code/scan2cap_codebase/Scan2Cap/data'
 CONF.PATH.OUTPUT_ROOT = os.path.join(CONF.PATH.CODE_ROOT, "outputs")
 CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
 CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANS_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
-CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_train.json')
-CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_filtered_fixed_viewpoint_val.json')
-CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary.json')
-CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
-CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.DATA_ROOT, 'glove.p')
+CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'match-based/vp_matching/matches_train.json')
+CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'match-based/vp_matching/matches_val.json')
+CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary.json')
+CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
+CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'glove.p')
 
 
 #########################

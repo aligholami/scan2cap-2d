@@ -136,6 +136,14 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
         assert self.feat_input['add_target']
 
+    def send_to_device(self, dd):
+        dd_new = {}
+        for k, v in dd.items():
+            if isinstance(v, torch.Tensor):
+                dd_new[k] = v.to(self.device)
+            
+        return dd_new
+        
     def forward(self, data_dict, is_eval=False):
 
         if self.feat_input['add_global']:
@@ -145,6 +153,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
             t_feat = self.reduce_dim(t_feat)
             data_dict['t_feat'] = t_feat
 
+        data_dict = self.send_to_device(data_dict)
         if not is_eval:
             # During training
             data_dict = self.forward_train_batch(data_dict)
