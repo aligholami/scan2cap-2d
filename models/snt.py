@@ -62,13 +62,13 @@ class ShowAndTell(CaptionBase):
         self.feat_input = feat_input
         assert self.feat_input['add_global']
 
-    def send_to_device(self, dd):
-        dd_new = {}
-        for k, v in dd.items():
-            if isinstance(v, torch.Tensor):
-                dd_new[k] = v.to(self.device)
+    # def send_to_device(self, dd):
+    #     dd_new = {}
+    #     for k, v in dd.items():
+    #         if isinstance(v, torch.Tensor):
+    #             dd_new[k] = v.to(self.device)
             
-        return dd_new
+    #     return dd_new
         
 
     def forward(self, data_dict, is_eval=False):
@@ -82,7 +82,6 @@ class ShowAndTell(CaptionBase):
         else:
             data_dict['inp_feat'] = g_feat
 
-        data_dict = self.send_to_device(data_dict)
         if not is_eval:
             data_dict = self.forward_train_batch(data_dict)
         else:

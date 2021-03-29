@@ -54,10 +54,10 @@ class ScanReferDataset(Dataset):
             box = box[sample_id]  # Returns a list of dict
 
         # Maps object ids (oracle or detected) to their bounding box features
-        print("loading featss {}".format(idx))
+        # print("loading featss {}".format(idx))
         all_box_feats = np.load(self.run_config.PATH.BOX_FEAT, allow_pickle=True).item()
         box_feat = all_box_feats[sample_id]
-        print("done")
+        # print("done")
 
         all_frame_feats = np.load(self.run_config.PATH.IMAGE_FEAT, allow_pickle=True).item()
         frame_feat = all_frame_feats[sample_id]
