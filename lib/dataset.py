@@ -4,6 +4,7 @@ import time
 import json
 import math
 import torch
+import h5py
 import imagesize
 import numpy as np
 from tqdm import tqdm
@@ -48,68 +49,43 @@ class ScanReferDataset(Dataset):
         lang_ids = np.array(self.lang_ids[sample_id])
         lang_len = len(item["token"]) + 2
         lang_len = lang_len if lang_len <= self.run_config.MAX_DESC_LEN + 2 else self.run_config.MAX_DESC_LEN + 2
-        
-        with open(self.run_config.PATH.BOX, 'rb') as f:
-            box = pickle.load(f)
-            box = box[sample_id]  # Returns a list of dict
 
-        # Maps object ids (oracle or detected) to their bounding box features
-        # print("loading featss {}".format(idx))
-        all_box_feats = np.load(self.run_config.PATH.BOX_FEAT, allow_pickle=True).item()
-        box_feat = all_box_feats[sample_id]
-        # print("done")
+        with h5py.File(self.run_config.PATH.DB_PATH, 'r') as db:
+            boxes = np.array(db['box'][sample_id])
+            box_feats = np.array(db['boxfeat'][sample_id])
+            object_ids = np.array(db['objectids'][sample_id])
+            global_feat = np.array(db['globalfeat'][sample_id])
 
-        all_frame_feats = np.load(self.run_config.PATH.IMAGE_FEAT, allow_pickle=True).item()
-        frame_feat = all_frame_feats[sample_id]
+            target_idx = np.where(object_ids == int(target_id))[0]
+            if target_idx.shape[0] == 1:
+                target_feat = np.concatenate((box_feats[target_idx], boxes[target_idx]), axis=1)
+                boxes = np.delete(boxes, target_idx, axis=0)
+                pool_feats = np.delete(box_feats, target_idx, axis=0)
+                pool_feats = np.concatenate((pool_feats, boxes), axis=1)
+                pool_ids = np.delete(object_ids, target_idx, axis=0)
 
-        pool_ids = []
-        pool_feats = []
-        target_feat = None
-        if len(box) >= 2:
-            for ix, bbox_info in enumerate(box):
-                xyxy_bbox = np.array(
-                    [math.floor(bbox_info["bbox"][0]), math.floor(bbox_info["bbox"][1]),
-                    math.ceil(bbox_info["bbox"][2]), math.ceil(bbox_info["bbox"][3])], dtype=np.int16)
-                object_id = np.array(bbox_info['object_id'], dtype=np.int16)
-                # print("looking for {} in {}".format(ix, box_feat))
-                object_feat = np.concatenate((box_feat[str(object_id)], xyxy_bbox))
+            else:
+                random_idx = random.sample(population=list(range(box_feats.shape[0])), k=1)
+                target_feat = np.concatenate((box_feats[random_idx], boxes[random_idx]), axis=1)
+                boxes = np.delete(boxes, random_idx, axis=0)
+                pool_feats = np.delete(box_feats, random_idx, axis=0)
+                pool_feats = np.concatenate((pool_feats, boxes), axis=1)
+                pool_ids = np.delete(object_ids, random_idx, axis=0)
 
-                if str(bbox_info['object_id']) == str(target_id):
-                    target_feat = object_feat
 
-                else:
-                    pool_feats.append(object_feat)
-                    pool_ids.append(object_id)
-
-            # Happens when in votenet or mask rcnn mode (Note: we are not doing any dense captioning here).
-            # Only during eval.
-            if target_feat is None:
-                assert self.split != 'train'    # since we only train in oracle mode
-                random_bbox_index = random.sample(population=list(enumerate(box)), k=1)[0][0]
-                random_bbox = box[random_bbox_index]
-                random_bbox_feat = box_feat[str(random_bbox['object_id'])]
-                xyxy_bbox = np.array(
-                    [math.floor(random_bbox["bbox"][0]), math.floor(random_bbox["bbox"][1]),
-                    math.ceil(random_bbox["bbox"][2]), math.ceil(random_bbox["bbox"][3])], dtype=np.int16)
-                target_feat = np.concatenate((random_bbox_feat, xyxy_bbox))
-                target_id = random_bbox['object_id']
-
-            ret = {
-                'failed': False,
-                'lang_feat': lang_feat,
-                'lang_len': lang_len,
-                'lang_ids': lang_ids,
-                't_feat': target_feat,
-                't_id': np.array(target_id, dtype=np.int16),
-                'c_feats': pool_feats,
-                'c_ids': pool_ids,
-                'g_feat': frame_feat,
-                'sample_id': sample_id,
-                'load_time': time.time() - start
-            }
-
-        else:
-            ret = {'failed': True}
+        ret = {
+            'failed': False,
+            'lang_feat': lang_feat,
+            'lang_len': lang_len,
+            'lang_ids': lang_ids,
+            't_feat': target_feat,
+            't_id': np.array(target_id, dtype=np.int16),
+            'c_feats': pool_feats,
+            'c_ids': pool_ids,
+            'g_feat': global_feat,
+            'sample_id': sample_id,
+            'load_time': time.time() - start
+        }
 
         return ret
 
@@ -289,8 +265,8 @@ class ScanReferDataset(Dataset):
 
     def collate_fn(self, data):
         data = list(filter(lambda x: x['failed'] == False, data))
-        data_dicts = sorted(data, key=lambda d: len(d['c_ids']), reverse=True)
-        max_proposals_in_batch = len(data_dicts[0]['c_ids'])
+        data_dicts = sorted(data, key=lambda d: d['c_ids'].shape[0], reverse=True)
+        max_proposals_in_batch = data_dicts[0]['c_ids'].shape[0]
         batch_size = len(data_dicts)
         lang_feat = torch.zeros((batch_size, len(data_dicts[0]['lang_feat']), len(data_dicts[0]['lang_feat'][0])),
                                 dtype=torch.float32)
@@ -307,10 +283,8 @@ class ScanReferDataset(Dataset):
 
         for ix, d in enumerate(data_dicts):
             num_proposals = len(d['c_ids'])
-            padded_proposal_feat[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['c_feats'])).unsqueeze(0)
-            padded_proposal_object_ids[ix, :num_proposals, :] = torch.from_numpy(
-                np.vstack(d['c_ids']))
+            padded_proposal_feat[ix, :num_proposals, :] = torch.from_numpy(d['c_feats']).unsqueeze(0)
+            padded_proposal_object_ids[ix, :num_proposals, :] = torch.from_numpy(d['c_ids'])
             vis_feats[ix, :] = torch.from_numpy(d['g_feat']).squeeze().unsqueeze(0)
             target_feat[ix, :] = torch.from_numpy(d['t_feat']).squeeze().unsqueeze(0)
             target_object_id[ix, :] = torch.from_numpy((d['t_id']))

@@ -3,6 +3,7 @@ import time
 import json
 import torch
 import pickle
+import h5py
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -80,17 +81,17 @@ def export_bbox_pickle(
         INSTANCE_MASK_PATH,
         SAMPLE_LIST,
         SCENE_LIST,
-        WRITE_PICKLES_PATH,
+        DB_PATH,
         RESIZE=(320, 240)
 ):
     id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
-    pickle_dir = os.path.dirname(WRITE_PICKLES_PATH)
+    pickle_dir = os.path.dirname(DB_PATH)
     os.makedirs(pickle_dir, exist_ok=True)
 
     print("exporting image bounding boxes...")
 
-    aggregation = {}
+    db = h5py.File(DB_PATH, 'w')
     for gg in tqdm(SAMPLE_LIST):
         sample_id = gg['sample_id']
         scene_id = gg['scene_id']
@@ -105,7 +106,10 @@ def export_bbox_pickle(
             continue
 
         labels = np.unique(label_img)
-        bbox_info = []
+        bbox = []
+        object_ids = []
+        sem_labels = []
+
         for label in labels:
             if label == 0: continue
             raw_name = id2name[scene_id][label - 1]
@@ -116,28 +120,28 @@ def export_bbox_pickle(
             x_min, y_min = np.min(target_coords[1], axis=0), np.min(target_coords[0], axis=0)
             bbox_scaled = [x_min * scale_x, y_min * scale_y, x_max * scale_x, y_max * scale_y]
             bbox_validated = validate_bbox(bbox_scaled, RESIZE[0], RESIZE[1])
-            bbox_info.append(
-                {
-                    "bbox": bbox_validated,
-                    "object_id": label - 1,
-                    "object_name": raw_name,
-                    "sem_label": sem_label
-                }
-            )
+            bbox.append(np.array(bbox_validated, dtype=np.float))
+            object_ids.append(np.array(label - 1, dtype=np.uint8))
+            sem_labels.append(np.array(sem_label, dtype=np.uint8))
 
-        aggregation[sample_id] = bbox_info
+        if len(bbox) >= 1:
+            bbox = np.vstack(bbox)
+            oids = np.vstack(object_ids)
+            slabels = np.vstack(sem_labels)
+            db.create_dataset('box/{}'.format(sample_id), data=bbox)
+            db.create_dataset('objectids/{}'.format(sample_id), data=oids)
+            db.create_dataset('semlabels/{}'.format(sample_id), data=slabels)
 
-    with open(WRITE_PICKLES_PATH, "wb") as f:
-        pickle.dump(aggregation, f)
+    db.close()
 
     print("Created boxes.")
 
 
 def export_image_features(
+        KEY_FORMAT,
         IMAGE,
-        IMAGE_FEAT,
+        DB_PATH,
         BOX,
-        BOX_FEAT,
         SAMPLE_LIST,
         DEVICE,
         RESIZE
@@ -145,11 +149,11 @@ def export_image_features(
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     fd_train = FrameData(
+        key_format=KEY_FORMAT,
         resize=RESIZE,
         frame_path=IMAGE,
-        frame_feature_path=IMAGE_FEAT,
-        box_path=BOX,
-        box_feature_path=BOX_FEAT,
+        db_path=DB_PATH,
+        box=BOX,
         input_list=SAMPLE_LIST,
         transforms=normalize
     )
@@ -184,10 +188,10 @@ def export_image_features(
 
 
 def export_bbox_features(
+        KEY_FORMAT,
         IMAGE,
-        IMAGE_FEAT,
+        DB_PATH,
         BOX,
-        BOX_FEAT,
         SAMPLE_LIST,
         DEVICE,
         RESIZE
@@ -196,11 +200,11 @@ def export_bbox_features(
                                      std=[0.229, 0.224, 0.225])
 
     fd_train = FrameData(
+        key_format=KEY_FORMAT,
         resize=RESIZE,
         frame_path=IMAGE,
-        frame_feature_path=IMAGE_FEAT,
-        box_path=BOX,
-        box_feature_path=BOX_FEAT,
+        db_path=DB_PATH,
+        box=BOX,
         input_list=SAMPLE_LIST,
         transforms=normalize
     )

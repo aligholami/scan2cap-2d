@@ -58,28 +58,28 @@ def prep_main(exp_type, dataset, viewpoint, box):
         INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,
         SAMPLE_LIST=sample_list,
         SCENE_LIST=scene_list,
-        WRITE_PICKLES_PATH=run_config.PATH.BOX,
+        DB_PATH=run_config.PATH.DB_PATH,
         RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
     )
 
     # 3. Run on Device
     export_image_features(
+        KEY_FORMAT=run_config.TYPES.KEY_FORMAT,
         RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
-        IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
-        BOX=None,
-        BOX_FEAT=None,
+        DB_PATH=run_config.PATH.DB_PATH,
+        BOX=False,
         SAMPLE_LIST=sample_list,
         DEVICE=device
     )
 
     # 4. Run on Device
     export_bbox_features(
+        KEY_FORMAT=run_config.TYPES.KEY_FORMAT,
         RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
-        IMAGE_FEAT=run_config.PATH.IMAGE_FEAT,
-        BOX=run_config.PATH.BOX,
-        BOX_FEAT=run_config.PATH.BOX_FEAT,
+        DB_PATH=run_config.PATH.DB_PATH,
+        BOX=True,
         SAMPLE_LIST=sample_list,
         DEVICE=device
     )

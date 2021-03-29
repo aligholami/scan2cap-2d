@@ -73,7 +73,7 @@ def adapt_sample_keys(sample_list, key_type):
 def get_samples(mode, key_type):
     subset = False
     if subset:
-        subset_range = 1000
+        subset_range = 200
     else:
         subset_range = None
 
@@ -118,39 +118,35 @@ def get_config(exp_type, dataset, viewpoint, box):
     if selected_dataset == 'scanrefer':
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'tatt-based/resnet101_features.npy')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks/{}/{}.objectId.encoded.png')
-            CONF.PATH.BOX = os.path.join(data_root, 'tatt-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'tatt-based/box_feat/box_feat.npy')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'tatt-based/db_annotated.h5')
             CONF.TYPES.KEY_TYPE = 'kkk'
+            CONF.TYPES.KEY_FORMAT = '{}-{}_{}'
 
         if selected_viewpoint == 'estimated':
             assert selected_box_mode == 'votenet'
             CONF.PATH.IMAGE = os.path.join(data_root, 'estimated-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'test-based/resnet101_features.npy')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'estimated-based/instance-masks/{}/{}.objectId.encoded.png')
-            CONF.PATH.BOX = os.path.join(data_root, 'test-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'test-based/box_feat/box_feat.npy')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'test-based/db_estimated.h5')
             CONF.PATH.VOTENET_PROJECTIONS = os.path.join(data_root, 'estimated-based/predicted_viewpoints'
                                                                     '/votenet_estimated_viewpoint_val.json')
             CONF.TYPES.KEY_TYPE = 'kk'
+            CONF.TYPES.KEY_FORMAT = '{}-{}'
 
         if selected_viewpoint == 'topdown':
             CONF.PATH.IMAGE = os.path.join(data_root, 'topdown-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'td-based/resnet101_features.npy')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks/{}/{}.vertexAttribute.encoded.png')
-            CONF.PATH.BOX = os.path.join(data_root, 'td-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'td-based/box_feat/box_feat.npy')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'td-based/db_td.h5')
             CONF.TYPES.KEY_TYPE = 'k'
+            CONF.TYPES.KEY_FORMAT = '{}'
 
     if selected_dataset == 'referit':
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'referit-based/renders/')
-            CONF.PATH.IMAGE_FEAT = os.path.join(data_root, 'referit-based/resnet101_features.npy')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'referit-based/instance-masks')
-            CONF.PATH.BOX = os.path.join(data_root, 'referit-based/box/box.p')
-            CONF.PATH.BOX_FEAT = os.path.join(data_root, 'referit-based/box_feat/box_feat.npy')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'referit-based/db_referit.h5')
             CONF.TYPES.KEY_TYPE = 'kk'
+            CONF.TYPES.KEY_FORMAT = '{}-{}'
 
     return CONF
 

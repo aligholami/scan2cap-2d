@@ -2,6 +2,7 @@ import os
 import torch
 import pickle
 import math
+import h5py
 import numpy as np
 from torch.utils.data import Dataset
 from PIL import Image
@@ -9,25 +10,53 @@ from tqdm import tqdm
 
 
 class FrameData(Dataset):
-    def __init__(self, resize, frame_path, frame_feature_path, box_path, box_feature_path, input_list, transforms):
+    def __init__(self, key_format, resize, frame_path, db_path, box, input_list, transforms):
         self.new_width, self.new_height = resize
+        self.key_format = key_format
         self.frames_path = frame_path
-        self.frame_feature_path = frame_feature_path
-        self.box_path = box_path
-        self.box_feature_path = box_feature_path
+        self.db_path = db_path
+        self.box = box
         self.input_list = input_list
         self.transforms = transforms
+        self.pre_training_verification()
 
-        self.box = None
-        if box_path is not None:
-            with open(box_path, 'rb') as bpf:
-                self.box = pickle.load(bpf)
+    def pre_training_verification(self):
+        self.prepare_db()
+        self.verify_keys()
+        self.update_samples()
+        self.db.close()
+
+    def prepare_db(self):
+        assert os.path.exists(self.db_path)
+        self.db = h5py.File(self.db_path, 'r')
+    
+    def verify_keys(self):
+        target_sample_keys = [item['sample_id'] for item in self.input_list]
+        db_keys = list(self.db['box'].keys())
+        ignored_keys = [k for k in target_sample_keys if k not in db_keys]
+
+        print("Number of ignored keys: {}".format(len(ignored_keys)))
+        assert len(ignored_keys) < 15   # problematic keys
+        self.ignored_keys = ignored_keys
+
+    def update_samples(self):
+        updated_sample_list = []
+        for sample in self.input_list:
+            kf = sample['sample_id']
+            if kf not in self.ignored_keys:
+                updated_sample_list.append(sample)
+        
+        self.verified_list = updated_sample_list
+
+        print("Number of samples before ignoring: ", len(self.input_list))
+        print("Number of samples after ignoring: ", len(self.verified_list))
+        print("Ignored keys: ", self.ignored_keys)
 
     def __len__(self):
-        return len(self.input_list)
+        return len(self.verified_list)
 
     def __getitem__(self, idx):
-        input_item = self.input_list[idx]
+        input_item = self.verified_list[idx]
         sample_id = input_item['sample_id']
         scene_id = input_item['scene_id']
 
@@ -36,31 +65,24 @@ class FrameData(Dataset):
         )
 
         # load bbox info
-        if self.box is not None:
-            bbox_info = self.box[sample_id]
-            boxes = torch.zeros(len(bbox_info), 4).float()
-            boxes_object_ids = torch.zeros(len(bbox_info)).int()
-            for i, info in enumerate(bbox_info):
-                xyxy_bbox_scaled = [math.floor(info["bbox"][0]), math.floor(info["bbox"][1]),
-                                    math.ceil(info["bbox"][2]), math.ceil(info["bbox"][3])]
-                boxes[i] = torch.tensor(xyxy_bbox_scaled, dtype=torch.float)
-                object_id = info['object_id']
-                boxes_object_ids[i] = torch.tensor([object_id], dtype=torch.int16)
+        with h5py.File(self.db_path, 'r') as db:
+            boxes = np.array(db['box'][sample_id])
+            bbox_ids = np.array(db['objectids'][sample_id])
+            if self.box:
+                ret = {
+                    'frame_tensor': frame_tensor,
+                    'bbox_info': boxes,
+                    'bbox_id': bbox_ids,
+                    'sample_id': sample_id
+                }
 
-            ret = {
-                'frame_tensor': frame_tensor,
-                'bbox_info': boxes,
-                'bbox_id': boxes_object_ids,
-                'sample_id': sample_id
-            }
-
-        else:
-            ret = {
-                'frame_tensor': frame_tensor,
-                'bbox_info': None,
-                'bbox_id': None,
-                'sample_id': sample_id
-            }
+            else:
+                ret = {
+                    'frame_tensor': frame_tensor,
+                    'bbox_info': None,
+                    'bbox_id': None,
+                    'sample_id': sample_id
+                }
 
         return ret
 
@@ -90,18 +112,17 @@ class FrameData(Dataset):
             batches is a list of dict. Each dict has a batch of results
             in it.
         """
-        target_npy = self.frame_feature_path
-        aggregation = {}
-        target_dir = os.path.dirname(target_npy)
-        os.makedirs(target_dir, exist_ok=True)
+        db = h5py.File(self.db_path, 'a')
+        target_dir = os.path.dirname(self.db_path)
+        assert os.path.exists(target_dir)
 
         for batch in tqdm(batches):
             batch_size = len(batch['sample_ids'])
             for i in range(batch_size):
                 k = '{}'.format(batch['sample_ids'][i])
-                aggregation[k] = batch['frame_features'][i].detach().cpu().numpy()
+                db.create_dataset('globalfeat/{}'.format(k), data=batch['frame_features'][i].detach().cpu().numpy())
 
-        np.save(target_npy, aggregation)
+        db.close()
 
     def write_box_features(self, batches):
         """
@@ -109,18 +130,18 @@ class FrameData(Dataset):
             batches is a list of dict. Each dict has a batch of results
             in it.
         """
-        target_npy = self.box_feature_path
-        aggregation = {}
-        target_dir = os.path.dirname(target_npy)
-        os.makedirs(target_dir, exist_ok=True)
+        db = h5py.File(self.db_path, 'a')
+        target_dir = os.path.dirname(self.db_path)
+        assert os.path.exists(target_dir)
 
         for batch in tqdm(batches):
             batch_size = len(batch['sample_ids'])
             for i in range(batch_size):
                 frame_object_features = batch['proposals_features'][i]
                 sample_id = batch['sample_ids'][i]
-                sample_box_features = {}
-                for object_id, feature in frame_object_features.items():
-                    sample_box_features[object_id] = feature.squeeze().cpu().numpy()
-                aggregation[sample_id] = sample_box_features
-        np.save(target_npy, aggregation)
+                object_ids = np.array(list(frame_object_features.keys()), dtype=np.uint8)
+                features = np.vstack([item.squeeze().cpu().numpy() for item in list(frame_object_features.values())])
+                db.create_dataset('boxobjectid/{}'.format(sample_id), data=object_ids)
+                db.create_dataset('boxfeat/{}'.format(sample_id), data=features)        
+
+        db.close()
