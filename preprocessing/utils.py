@@ -1,4 +1,5 @@
 import os
+from random import sample
 import time
 import json
 import torch
@@ -74,8 +75,99 @@ def validate_bbox(xyxy, width, height):
 
     return [x_min, y_min, x_max, y_max]
 
+def sanitize_id_coco(
+    IMAGE_ID
+):
+    assert len(IMAGE_ID) >= 9 and len(IMAGE_ID) <= 11
+    
+    scene_id = 'scene' + IMAGE_ID[:7]
+    ann_id = IMAGE_ID[-1]
+    if len(IMAGE_ID) == 11:
+        object_id = IMAGE_ID[7:10]
 
-def export_bbox_pickle(
+    if len(IMAGE_ID) == 10:
+        object_id = IMAGE_ID[7:9]
+
+    if len(IMAGE_ID) == 9:
+        object_id = IMAGE_ID[7:8]
+
+    sanitized = '{}-{}_{}'.format(scene_id, object_id, ann_id)
+
+    return sanitized, scene_id, object_id, ann_id
+
+def get_iou(box1, box2):
+    """Implement the intersection over union (IoU) between box1 and box2
+    
+    Arguments:
+    box1 -- first box, list object with coordinates (x1, y1, x2, y2)
+    box2 -- second box, list object with coordinates (x1, y1, x2, y2)
+    """
+
+    # Calculate the coordinates of intersection of box1 and box2. 
+    x1_inter = max(box1[0], box2[0])
+    y1_inter = max(box1[1], box2[1])
+    x2_inter = min(box1[2], box2[2])
+    y2_inter = min(box1[3], box2[3])
+    #Calculate intersection area.
+    inter_area = (y2_inter - y1_inter) * (x2_inter - x1_inter)
+    
+    # Calculate the Union area.
+    box1_area = (box1[3] - box1[1] ) * (box1[2] - box1[0])
+    box2_area = (box1[3] - box1[1] ) * (box1[2] - box1[0])
+    union_area = box1_area + box2_area - inter_area
+   
+    # compute the IoU    
+    iou = inter_area/union_area
+
+    return iou
+
+def sort_by_iou(
+    SAMPLE_ID,
+    SAMPLE_ID_DETECTIONS,
+    DB
+):
+
+    # Load the target bounding box
+    target_object_id = int(SAMPLE_ID.split('-')[1].split('_')[0])
+    gt_boxes = DB['box'][SAMPLE_ID]
+        
+    dt_boxes = []
+    for item in SAMPLE_ID_DETECTIONS:
+        dt_boxes.append(item['bbox'])
+
+    dt_boxes = np.concatenate(dt_boxes, axis=0)
+    ious = []
+
+
+def export_bbox_pickle_coco(
+        AGGR_JSON_PATH,
+        SCANNET_V2_TSV,
+        MRCNN_DETECTIONS_PATH,
+        SAMPLE_LIST,
+        SCENE_LIST,
+        DB_PATH,
+        RESIZE=(320, 240)
+):
+
+    db = h5py.File(DB_PATH, 'r')
+    assert os.path.exists(MRCNN_DETECTIONS_PATH)
+    detections = json.load(open(MRCNN_DETECTIONS_PATH))
+    print("validating the mask r-cnn predictions.")
+    aggregations = {} # render_id -> list of predictions
+    for pred in tqdm(detections):
+        sample_id = sanitize_id_coco(pred['image_id'])        
+        if sample_id in aggregations.keys():      # filter ignored_renders
+            aggregations[sample_id].append(pred)
+        else:
+            aggregations[sample_id] = [pred] 
+
+    # Sort based on the IoU score with the gt box in that frame/render #####
+    print("sorting the bounding boxes based on IoU.")
+    for sample_id, detections in aggregations.items():
+        aggregations[sample] = sort_by_iou(sample_id, detections, db)
+
+
+def export_bbox_pickle_raw(
         AGGR_JSON_PATH,
         SCANNET_V2_TSV,
         INSTANCE_MASK_PATH,
@@ -84,6 +176,7 @@ def export_bbox_pickle(
         DB_PATH,
         RESIZE=(320, 240)
 ):
+
     id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
     pickle_dir = os.path.dirname(DB_PATH)

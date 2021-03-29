@@ -3,7 +3,7 @@ import torch
 import argparse
 import numpy as np
 from lib.conf import get_config, get_samples
-from preprocessing.utils import export_bbox_pickle, export_image_features, export_bbox_features
+from preprocessing.utils import export_bbox_pickle_raw, export_image_features, export_bbox_features
 from scripts.train import train_main
 from scripts.eval import eval_main
 
@@ -52,7 +52,7 @@ def prep_main(exp_type, dataset, viewpoint, box):
     # 4. Extract bounding box features
     
     # 2. Run on CPU
-    export_bbox_pickle(
+    export_bbox_pickle_raw(
         AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
         SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
         INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,

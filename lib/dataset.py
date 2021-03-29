@@ -34,15 +34,48 @@ class ScanReferDataset(Dataset):
         self.glove = None
         self.lang = None
         self.lang_ids = None
+        self.pre_training_verification()
         self.id2name = self.get_id2name_file()
         self.load_data()
 
+    def pre_training_verification(self):
+        self.prepare_db()
+        self.verify_keys()
+        self.update_samples()
+        self.db.close()
+
+    def prepare_db(self):
+        assert os.path.exists(self.run_config.PATH.DB_PATH)
+        self.db = h5py.File(self.run_config.PATH.DB_PATH, 'r')
+    
+    def verify_keys(self):
+        target_sample_keys = [item['sample_id'] for item in self.sample_list]
+        db_keys = list(self.db['box'].keys())
+        ignored_keys = [k for k in target_sample_keys if k not in db_keys]
+
+        print("Number of ignored keys: {}".format(len(ignored_keys)))
+        assert len(ignored_keys) < 15   # problematic keys
+        self.ignored_keys = ignored_keys
+
+    def update_samples(self):
+        updated_sample_list = []
+        for sample in self.sample_list:
+            kf = sample['sample_id']
+            if kf not in self.ignored_keys:
+                updated_sample_list.append(sample)
+        
+        self.verified_list = updated_sample_list
+
+        print("Number of samples before ignoring: ", len(self.sample_list))
+        print("Number of samples after ignoring: ", len(self.verified_list))
+        print("Ignored keys: ", self.ignored_keys)
+
     def __len__(self):
-        return len(self.sample_list)
+        return len(self.verified_list)
 
     def __getitem__(self, idx):
         start = time.time()
-        item = self.sample_list[idx]
+        item = self.verified_list[idx]
         sample_id = item['sample_id']
         target_id = item['object_id']
         lang_feat = self.lang[sample_id]
