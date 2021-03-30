@@ -126,22 +126,29 @@ def sort_by_iou(
     SAMPLE_ID_DETECTIONS,
     DB
 ):
+    """
+        Takes detections for each sample id, sorts them by IOU descendingly, and returns a 
+        SAMPLE_ID_DETECTIONS dictionary with added IOU scores.
+    """
 
-    # Load the target bounding box
+    sorted_detections = []
     target_object_id = int(SAMPLE_ID.split('-')[1].split('_')[0])
     gt_boxes = DB['box'][SAMPLE_ID]
-        
-    dt_boxes = []
+    gt_oids = DB['objectids'][SAMPLE_ID]
+    target_box_idx = np.where(gt_oids == target_object_id)[0]
+    target_box = gt_boxes[target_box_idx].tolist()
+    
+    # CONVERT BOX FORMAT FROM XYWH TO XYXY
     for item in SAMPLE_ID_DETECTIONS:
-        dt_boxes.append(item['bbox'])
+        detected_box = item['bbox']
+        item['iou'] = get_iou(detected_box, target_box)
+        sorted_detections.append(item)
 
-    dt_boxes = np.concatenate(dt_boxes, axis=0)
-    ious = []
-
+    sorted_detections = sorted(sorted_detections, key=lambda x: x['iou'], reverse=True)    # descending
+    
+    return sorted_detections
 
 def export_bbox_pickle_coco(
-        AGGR_JSON_PATH,
-        SCANNET_V2_TSV,
         MRCNN_DETECTIONS_PATH,
         SAMPLE_LIST,
         SCENE_LIST,
@@ -165,6 +172,31 @@ def export_bbox_pickle_coco(
     print("sorting the bounding boxes based on IoU.")
     for sample_id, detections in aggregations.items():
         aggregations[sample] = sort_by_iou(sample_id, detections, db)
+        
+    for sample_id, detections in aggregations.items():
+        detections = list(filter(lambda x: x['iou'] >= 0.25, detections))
+
+        boxes = []
+        ious = []
+        scores = []
+        categories = []
+        for d in detections:
+            scale_x = RESIZE[0] // d['segmentation']['size'][0]
+            scale_y = RESIZE[1] // d['segmentation']['size'][1]
+            scaled_box = np.array([scale_x * d['box'][0], scale_y * d['box'][1], scale_x * d['box'][2], scale_y * d['box'][3]])
+            boxes.append(scaled_box)
+            ious.append(d['iou'])
+            scores.append(d['scores'])
+            categories.append(d['category_id'])
+
+        boxes = np.vstack(boxes, axis=0)
+        ious = np.vstack(ious, axis=0)
+        scores = np.vstack(scores, axis=0)
+        categories = np.vstack(categories, axis=0)
+        db.create_dataset('box/{}'.format(sample_id), data=boxes)
+        db.create_dataset('ious/{}'.format(sample_id), data=ious)
+        db.create_dataset('semlabels/{}'.format(sample_id), data=categories)
+
 
 
 def export_bbox_pickle_raw(
@@ -252,12 +284,12 @@ def export_image_features(
     )
 
     conf = {
-        'batch_size': 8,
+        'batch_size': 16,
         'num_workers': 6
     }
 
     data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
-    model = ResNet101NoFC(pretrained=False, progress=False, device=DEVICE, mode='frame2feat').to(DEVICE)
+    model = ResNet101NoFC(pretrained=True, progress=True, device=DEVICE, mode='frame2feat').to(DEVICE)
     model.eval()
 
     extracted_batches = []
@@ -303,12 +335,12 @@ def export_bbox_features(
     )
 
     conf = {
-        'batch_size': 32,
+        'batch_size': 128,
         'num_workers': 6
     }
 
     data_loader = DataLoader(fd_train, collate_fn=fd_train.collate_fn, **conf)
-    model = ResNet101NoFC(pretrained=False, progress=False, device=DEVICE, mode='bbox2feat').to(DEVICE)
+    model = ResNet101NoFC(pretrained=True, progress=True, device=DEVICE, mode='bbox2feat').to(DEVICE)
     model.eval()
 
     extracted_batches = []
