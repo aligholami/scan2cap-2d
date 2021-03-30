@@ -47,6 +47,7 @@ def get_model(args, run_config, dataset):
             embeddings=dataset.glove,
             emb_size=run_config.EMBEDDING_SIZE,
             feat_size=feat_size,
+            context_size=run_config.PROPOSAL_FEATURE_SIZE,
             feat_input={'add_global': add_global, 'add_target': add_target},
             hidden_size=run_config.DECODER_HIDDEN_SIZE,
         )
@@ -71,7 +72,7 @@ def get_model(args, run_config, dataset):
         checkpoint = torch.load(args.ckpt_path)
         # print(checkpoint.keys())
         try:
-            model.load_state_dict(checkpoint, strict=False)
+            model.load_state_dict(checkpoint, strict=True)
             print("Loaded checkpoint from {}".format(args.ckpt_path))
         except KeyError:
             print("Checkpoint has the following keys available: ")

@@ -26,8 +26,10 @@ CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
 CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANS_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
-CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'match-based/vp_matching/matches_train.json')
-CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'match-based/vp_matching/matches_val.json')
+CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ScanRefer_filtered_train.json')
+CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ScanRefer_filtered_val.json')
+CONF.PATH.IGNORED_SAMPLES = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ignored_renders.json')
+
 CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary.json')
 CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
 CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'glove.p')
@@ -69,6 +71,12 @@ def adapt_sample_keys(sample_list, key_type):
 
     return up_sl
 
+def filter_ignored_samples(sample_list):
+    print("Number of samples before ignoring: ", len(sample_list))
+    ignored_samples = json.load(open(CONF.PATH.IGNORED_SAMPLES))
+    sample_list = [item for item in sample_list if not '{}-{}_{}'.format(item['scene_id'], item['object_id'], item['ann_id']) in ignored_samples]
+    print("Number of samples after ignoring: ", len(sample_list))
+    return sample_list
 
 def get_samples(mode, key_type):
     subset = False
@@ -82,18 +90,18 @@ def get_samples(mode, key_type):
     scene_list = []
     if mode == 'train':
         t = json.load(open(CONF.PATH.SCANREFER_TRAIN))[:subset_range]
-        sample_list = t 
+        sample_list = filter_ignored_samples(t) 
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     if mode == 'val':
         v = json.load(open(CONF.PATH.SCANREFER_VAL))[:subset_range]
-        sample_list = v
+        sample_list = filter_ignored_samples(v)
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     if mode == 'all':
         t = json.load(open(CONF.PATH.SCANREFER_TRAIN))[:subset_range]
         v = json.load(open(CONF.PATH.SCANREFER_VAL))[:subset_range]
-        sample_list = t + v
+        sample_list = filter_ignored_samples(t + v)
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     sample_list = adapt_sample_keys(sample_list, key_type)

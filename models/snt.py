@@ -62,15 +62,6 @@ class ShowAndTell(CaptionBase):
         self.feat_input = feat_input
         assert self.feat_input['add_global']
 
-    # def send_to_device(self, dd):
-    #     dd_new = {}
-    #     for k, v in dd.items():
-    #         if isinstance(v, torch.Tensor):
-    #             dd_new[k] = v.to(self.device)
-            
-    #     return dd_new
-        
-
     def forward(self, data_dict, is_eval=False):
 
         g_feat = data_dict["g_feat"]

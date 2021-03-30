@@ -6,12 +6,33 @@ import lib.capeval.bleu.bleu as capblue
 import lib.capeval.cider.cider as capcider
 import lib.capeval.rouge.rouge as caprouge
 import lib.capeval.meteor.meteor as capmeteor
+from collections import OrderedDict
 
+def remove_sos_eos(cap_dictionary):
+    clean_cap_dictionary = {}
+    for k, caps in cap_dictionary.items():
+        for cap in caps:
+            if isinstance(cap, type([])):
+                clean_cap = cap[0].strip('sos ')
+            if isinstance(cap, type('')):
+                clean_cap = cap.strip('sos ')
+
+            clean_cap = clean_cap.strip('sos')
+            clean_cap = clean_cap.strip(' eos')
+            clean_cap = clean_cap.strip('eos')
+
+            if k not in list(clean_cap_dictionary.keys()):
+                clean_cap_dictionary[k] = [clean_cap]
+            if k in list(clean_cap_dictionary.keys()):
+                clean_cap_dictionary[k].append(clean_cap)
+
+    return OrderedDict(clean_cap_dictionary)
 
 def prepare_corpus(scanrefer, max_len):
     corpus = {}
     for data in scanrefer:
         sample_id = data['sample_id']
+        # sample_id = "{}|{}".format(data['scene_id'], data['object_id'])
         token = data['token'][:max_len]
         description = " ".join(token)
 
@@ -83,6 +104,11 @@ def update_candidates(captions, candidates, data_dict, dataset):
     # dump generated captions
     for batch_id in range(batch_size):
         sample_id = data_dict['sample_id'][batch_id]
+        # scene_id = data_dict['sample_id'][batch_id].split('-')[0]
+        # object_id = data_dict['sample_id'][batch_id].split('-')[1].split('_')[0]
+        # sample_id = '{}|{}'.format(scene_id, object_id)
+        # sample_id = "{}|{}".format(data_dict['scene_id'], data['object_id'])
+
         caption_decoded = decode_caption(captions[batch_id], dataset.vocabulary["idx2word"])
 
         if sample_id not in candidates:
@@ -115,6 +141,16 @@ def feed_2d_retrieval_cap(model, dataset, dataloader):
 
     return candidates
 
+################# DEBUGGING ################
+def fix_keys(corpus):
+    corpus_new = {}
+    for k, v in corpus.items():
+        k1 = k.split('|')[0]
+        k2 = k.split('|')[1]
+        k_new = '{}|{}'.format(k1, k2)
+        corpus_new[k_new] = v
+
+    return corpus_new
 
 def eval_cap(_global_iter_id,
              model,
@@ -130,6 +166,7 @@ def eval_cap(_global_iter_id,
     # corpus
     run_config = dataset.run_config
     corpus_path = os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "corpus_{}.json".format(phase))
+
     if not os.path.exists(corpus_path):
         print("preparing corpus...")
         corpus = prepare_corpus(dataset.sample_list, max_len)
@@ -139,6 +176,7 @@ def eval_cap(_global_iter_id,
         print("loading corpus...")
         with open(corpus_path) as f:
             corpus = json.load(f)
+            corpus = corpus
 
     with torch.no_grad():
         if mode == 'nret':
@@ -148,7 +186,7 @@ def eval_cap(_global_iter_id,
 
     candidates = check_candidates(corpus, candidates)
     candidates = organize_candidates(corpus, candidates)
-
+    
     pred_path = os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "pred_{}.json".format(phase))
     with open(pred_path, "w") as f:
         json.dump(candidates, f, indent=4)
@@ -158,8 +196,11 @@ def eval_cap(_global_iter_id,
         with open(os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "extras_{}.json".format(phase)), "w") as f:
             json.dump(extras, f, indent=4)
 
+    # ###############################
     # compute scores
     print("computing scores...")
+    # candidates = remove_sos_eos(candidates)
+    # corpus = remove_sos_eos(corpus)
     bleu = capblue.Bleu(4).compute_score(corpus, candidates)
     cider = capcider.Cider().compute_score(corpus, candidates)
     rouge = caprouge.Rouge().compute_score(corpus, candidates)

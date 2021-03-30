@@ -151,7 +151,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
             g_feat = data_dict['g_feat']  # batch_size, 2048
             t_feat = torch.cat((g_feat, t_feat), dim=1)  # batch_size
             t_feat = self.reduce_dim(t_feat)
-            data_dict['t_feat'] = t_feat
+            data_dict['inp_feat'] = t_feat
 
         if not is_eval:
             # During training
@@ -169,7 +169,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
         c_feat = data_dict['c_feats']  # batch_size, num_objects_in_image, object_feat_size
-        t_feat = data_dict['t_feat']  # batch_size, object_feat_size
+        t_feat = data_dict['inp_feat']  # batch_size, object_feat_size
 
         # batch_size, object_feat_size
         t_feat = t_feat.squeeze()

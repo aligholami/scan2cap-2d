@@ -24,7 +24,6 @@ class ScanReferDataset(Dataset):
                  scene_list,
                  run_config
                  ):
-
         self.split = split
         self.sample_list = sample_list
         self.scene_list = scene_list
@@ -96,8 +95,22 @@ class ScanReferDataset(Dataset):
                 pool_feats = np.delete(box_feats, target_idx, axis=0)
                 pool_feats = np.concatenate((pool_feats, boxes), axis=1)
                 pool_ids = np.delete(object_ids, target_idx, axis=0)
+                ret = {
+                    'failed': False,
+                    'lang_feat': lang_feat,
+                    'lang_len': lang_len,
+                    'lang_ids': lang_ids,
+                    't_feat': target_feat,
+                    't_id': np.array(target_id, dtype=np.int16),
+                    'c_feats': pool_feats,
+                    'c_ids': pool_ids,
+                    'g_feat': global_feat,
+                    'sample_id': sample_id,
+                    'load_time': time.time() - start
+                }
 
             else:
+                ret = {'failed': True}
                 random_idx = random.sample(population=list(range(box_feats.shape[0])), k=1)
                 target_feat = np.concatenate((box_feats[random_idx], boxes[random_idx]), axis=1)
                 boxes = np.delete(boxes, random_idx, axis=0)
@@ -106,19 +119,6 @@ class ScanReferDataset(Dataset):
                 pool_ids = np.delete(object_ids, random_idx, axis=0)
 
 
-        ret = {
-            'failed': False,
-            'lang_feat': lang_feat,
-            'lang_len': lang_len,
-            'lang_ids': lang_ids,
-            't_feat': target_feat,
-            't_id': np.array(target_id, dtype=np.int16),
-            'c_feats': pool_feats,
-            'c_ids': pool_ids,
-            'g_feat': global_feat,
-            'sample_id': sample_id,
-            'load_time': time.time() - start
-        }
 
         return ret
 
