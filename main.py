@@ -6,7 +6,7 @@ from lib.conf import get_config, get_samples
 from preprocessing.utils import export_bbox_pickle_raw, export_image_features, export_bbox_features
 from scripts.train import train_main
 from scripts.eval import eval_main
-
+import random
 
 def parse_arg():
     ap = argparse.ArgumentParser()
@@ -23,14 +23,14 @@ def parse_arg():
 
     ap.add_argument("--tag", type=str, help="tag for the training, e.g. cuda_wl", default="")
     ap.add_argument("--gpu", type=str, help="gpu", default="0")
-    ap.add_argument("--batch_size", type=int, help="batch size", default=16)
+    ap.add_argument("--batch_size", type=int, help="batch size", default=64)
     ap.add_argument("--num_epochs", type=int, help="number of epochs", default=50)
     ap.add_argument("--verbose", type=int, help="iterations of showing verbose", default=10)
-    ap.add_argument("--num_workers", type=int, default=6)
+    ap.add_argument("--num_workers", type=int, default=8)
     ap.add_argument("--val_step", type=int, help="iterations of validating", default=2000)
     ap.add_argument("--lr", type=float, help="learning rate", default=1e-3)
     ap.add_argument("--wd", type=float, help="weight decay", default=1e-5)
-    ap.add_argument("--seed", type=int, default=42, help="random seed")
+    ap.add_argument("--seed", type=int, default=3, help="random seed")
     ap.add_argument("--folder", type=str, required=False)
     ap.add_argument("--shuffle", action='store_true', default=True)
     ap.add_argument("--ckpt_path", type=str, default="")
@@ -94,6 +94,7 @@ if __name__ == '__main__':
 
     # reproducibility
     torch.manual_seed(args.seed)
+    random.seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     np.random.seed(args.seed)
