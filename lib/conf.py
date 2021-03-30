@@ -126,10 +126,17 @@ def get_config(exp_type, dataset, viewpoint, box):
     if selected_dataset == 'scanrefer':
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks/{}/{}.objectId.encoded.png')
-            CONF.PATH.DB_PATH = os.path.join(data_root, 'tatt-based/db_annotated.h5')
-            CONF.TYPES.KEY_TYPE = 'kkk'
-            CONF.TYPES.KEY_FORMAT = '{}-{}_{}'
+            if selected_box_mode == 'oracle':
+                CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks/{}/{}.objectId.encoded.png')
+                CONF.PATH.DB_PATH = os.path.join(data_root, 'tatt-based/db_annotated_oracle.h5')
+                CONF.TYPES.KEY_TYPE = 'kkk'
+                CONF.TYPES.KEY_FORMAT = '{}-{}_{}'
+
+            if selected_box_mode == 'mrcnn':
+                CONF.PATH.MRCNN_DETECTIONS_PATH = os.path.join(data_root, 'coco_instances_results.json')
+                CONF.PATH.DB_PATH = os.path.join(data_root, 'mrcnn-based/db_annotated_mrcnn.h5')
+                CONF.TYPES.KEY_TYPE = 'kkk'
+                CONF.TYPES.KEY_FORMAT = '{}-{}_{}'
 
         if selected_viewpoint == 'estimated':
             assert selected_box_mode == 'votenet'
