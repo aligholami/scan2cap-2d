@@ -1,9 +1,7 @@
 import os
 from random import sample
-import time
 import json
 import torch
-import pickle
 import h5py
 import numpy as np
 from PIL import Image
@@ -75,11 +73,12 @@ def validate_bbox(xyxy, width, height):
 
     return [x_min, y_min, x_max, y_max]
 
+
 def sanitize_id_coco(
-    IMAGE_ID
+        IMAGE_ID
 ):
     assert len(IMAGE_ID) >= 9 and len(IMAGE_ID) <= 11
-    
+
     scene_id = 'scene' + IMAGE_ID[:7]
     ann_id = IMAGE_ID[-1]
     if len(IMAGE_ID) == 11:
@@ -95,6 +94,7 @@ def sanitize_id_coco(
 
     return sanitized, scene_id, object_id, ann_id
 
+
 def get_iou(box1, box2):
     """Implement the intersection over union (IoU) between box1 and box2
     
@@ -108,26 +108,27 @@ def get_iou(box1, box2):
     y1_inter = max(box1[1], box2[1])
     x2_inter = min(box1[2], box2[2])
     y2_inter = min(box1[3], box2[3])
-    #Calculate intersection area.
+    # Calculate intersection area.
     inter_area = (y2_inter - y1_inter) * (x2_inter - x1_inter)
-    
+
     # Calculate the Union area.
-    box1_area = (box1[3] - box1[1] ) * (box1[2] - box1[0])
-    box2_area = (box1[3] - box1[1] ) * (box1[2] - box1[0])
+    box1_area = (box1[3] - box1[1]) * (box1[2] - box1[0])
+    box2_area = (box1[3] - box1[1]) * (box1[2] - box1[0])
     union_area = box1_area + box2_area - inter_area
-   
+
     # compute the IoU    
-    iou = inter_area/union_area
+    iou = inter_area / union_area
 
     return iou
 
+
 def sort_by_iou(
-    SAMPLE_ID,
-    SAMPLE_ID_DETECTIONS,
-    DB
+        SAMPLE_ID,
+        SAMPLE_ID_DETECTIONS,
+        DB
 ):
     """
-        Takes detections for each sample id, sorts them by IOU descendingly, and returns a 
+        Takes detections for each sample id, sorts them by IOU descending, and returns a
         SAMPLE_ID_DETECTIONS dictionary with added IOU scores.
     """
 
@@ -137,68 +138,77 @@ def sort_by_iou(
     gt_oids = DB['objectids'][SAMPLE_ID]
     target_box_idx = np.where(gt_oids == target_object_id)[0]
     target_box = gt_boxes[target_box_idx].tolist()
-    
+
     # CONVERT BOX FORMAT FROM XYWH TO XYXY
     for item in SAMPLE_ID_DETECTIONS:
         detected_box = item['bbox']
         item['iou'] = get_iou(detected_box, target_box)
         sorted_detections.append(item)
 
-    sorted_detections = sorted(sorted_detections, key=lambda x: x['iou'], reverse=True)    # descending
-    
+    sorted_detections = sorted(sorted_detections, key=lambda x: x['iou'], reverse=True)  # descending
+
     return sorted_detections
+
 
 def export_bbox_pickle_coco(
         MRCNN_DETECTIONS_PATH,
-        SAMPLE_LIST,
-        SCENE_LIST,
         DB_PATH,
         RESIZE=(320, 240)
 ):
-
-    db = h5py.File(DB_PATH, 'r')
+    db = h5py.File(DB_PATH, 'W')
     assert os.path.exists(MRCNN_DETECTIONS_PATH)
     detections = json.load(open(MRCNN_DETECTIONS_PATH))
     print("validating the mask r-cnn predictions.")
-    aggregations = {} # render_id -> list of predictions
+    aggregations = {}  # render_id -> list of predictions
     for pred in tqdm(detections):
-        sample_id = sanitize_id_coco(pred['image_id'])        
-        if sample_id in aggregations.keys():      # filter ignored_renders
+        sample_id = sanitize_id_coco(pred['image_id'])
+        if sample_id in aggregations.keys():  # filter ignored_renders
             aggregations[sample_id].append(pred)
         else:
-            aggregations[sample_id] = [pred] 
+            aggregations[sample_id] = [pred]
 
     # Sort based on the IoU score with the gt box in that frame/render #####
     print("sorting the bounding boxes based on IoU.")
     for sample_id, detections in aggregations.items():
         aggregations[sample] = sort_by_iou(sample_id, detections, db)
-        
+
     for sample_id, detections in aggregations.items():
-        detections = list(filter(lambda x: x['iou'] >= 0.25, detections))
+        detections = list(filter(lambda x: x['iou'] >= 0.5, detections))
 
         boxes = []
         ious = []
         scores = []
         categories = []
-        for d in detections:
+        object_ids = []
+        for object_id, d in enumerate(detections):
             scale_x = RESIZE[0] // d['segmentation']['size'][0]
             scale_y = RESIZE[1] // d['segmentation']['size'][1]
-            scaled_box = np.array([scale_x * d['box'][0], scale_y * d['box'][1], scale_x * d['box'][2], scale_y * d['box'][3]])
-            boxes.append(scaled_box)
-            ious.append(d['iou'])
-            scores.append(d['scores'])
-            categories.append(d['category_id'])
+            scaled_box = np.array(
+                [scale_x * d['box'][0], scale_y * d['box'][1], scale_x * d['box'][2], scale_y * d['box'][3]])
+            iou = np.array(d['iou'])
+            score = np.array(d['score'])
+            category = np.array(d['category_id'])
+            object_id = np.array(object_id)
 
-        boxes = np.vstack(boxes, axis=0)
-        ious = np.vstack(ious, axis=0)
-        scores = np.vstack(scores, axis=0)
-        categories = np.vstack(categories, axis=0)
-        db.create_dataset('box/{}'.format(sample_id), data=boxes)
-        db.create_dataset('ious/{}'.format(sample_id), data=ious)
-        db.create_dataset('semlabels/{}'.format(sample_id), data=categories)
-        # CONTINUE FROM HERE.
-        ####################
-        ####################
+            boxes.append(scaled_box)
+            ious.append(iou)
+            scores.append(score)
+            categories.append(category)
+            object_ids.append(object_id)
+
+        if len(boxes) >= 1:
+            boxes = np.vstack(boxes, axis=0)
+            ious = np.vstack(ious, axis=0)
+            scores = np.vstack(scores, axis=0)
+            categories = np.vstack(categories, axis=0)
+            db.create_dataset('box/{}'.format(sample_id), data=boxes)
+            db.create_dataset('ious/{}'.format(sample_id), data=ious)
+            db.create_dataset('scores/{}'.format(sample_id), data=scores)
+            db.create_dataset('objectids/{}'.format(sample_id), data=object_ids)
+            db.create_dataset('categories/{}'.format(sample_id), data=categories)
+
+    db.close()
+
 
 def export_bbox_pickle_raw(
         AGGR_JSON_PATH,
@@ -209,7 +219,6 @@ def export_bbox_pickle_raw(
         DB_PATH,
         RESIZE=(320, 240)
 ):
-
     id2name = get_id2name_file(AGGR_JSON=AGGR_JSON_PATH, SCENE_LIST=SCENE_LIST)
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
     pickle_dir = os.path.dirname(DB_PATH)

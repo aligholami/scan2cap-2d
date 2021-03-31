@@ -3,10 +3,12 @@ import torch
 import argparse
 import numpy as np
 from lib.conf import get_config, get_samples
-from preprocessing.utils import export_bbox_pickle_raw, export_image_features, export_bbox_features
+from preprocessing.utils import export_bbox_pickle_raw, export_bbox_pickle_coco, export_image_features, \
+    export_bbox_features
 from scripts.train import train_main
 from scripts.eval import eval_main
 import random
+
 
 def parse_arg():
     ap = argparse.ArgumentParser()
@@ -50,17 +52,24 @@ def prep_main(exp_type, dataset, viewpoint, box):
     # 2. Extract global ResNet101 features
     # 3. Extract bounding boxes from aggregations and instance masks
     # 4. Extract bounding box features
-    
+
     # 2. Run on CPU
-    export_bbox_pickle_raw(
-        AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
-        SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
-        INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,
-        SAMPLE_LIST=sample_list,
-        SCENE_LIST=scene_list,
-        DB_PATH=run_config.PATH.DB_PATH,
-        RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
-    )
+    if box == 'mrcnn':
+        export_bbox_pickle_coco(
+            MRCNN_DETECTIONS_PATH=run_config.PATH.MRCNN_DETECTIONS_PATH,
+            DB_PATH=run_config.PATH.DB_PATH,
+            RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
+        )
+    if box == 'oracle' or 'votenet':
+        export_bbox_pickle_raw(
+            AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
+            SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
+            INSTANCE_MASK_PATH=run_config.PATH.INSTANCE_MASK,
+            SAMPLE_LIST=sample_list,
+            SCENE_LIST=scene_list,
+            DB_PATH=run_config.PATH.DB_PATH,
+            RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
+        )
 
     # 3. Run on Device
     export_image_features(
@@ -87,7 +96,7 @@ def prep_main(exp_type, dataset, viewpoint, box):
 
 if __name__ == '__main__':
     args = parse_arg()
-        
+
     # setting
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
@@ -101,7 +110,7 @@ if __name__ == '__main__':
 
     if args.prep:
         prep_main(args.exp_type, args.dataset, args.viewpoint, args.box)
-    
+
     if args.train:
         train_main(args)
 

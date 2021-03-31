@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 def compute_cap_loss(data_dict, weights):
     # unpack
@@ -10,9 +10,9 @@ def compute_cap_loss(data_dict, weights):
     _, _, num_vocabs = pred_caps.shape
 
     # caption loss
-    criterion = nn.CrossEntropyLoss(ignore_index=0, weight=torch.FloatTensor(weights).cuda())
+    # criterion = nn.CrossEntropyLoss(ignore_index=0, weight=torch.FloatTensor(weights).cuda())
     # criterion = nn.CrossEntropyLoss(ignore_index=0)
-    cap_loss = criterion(pred_caps.reshape(-1, num_vocabs), target_caps.reshape(-1))
+    cap_loss = F.cross_entropy(pred_caps.reshape(-1, num_vocabs), target_caps.reshape(-1), ignore_index=0)
 
     # caption acc
     pred_caps = pred_caps.reshape(-1, num_vocabs).argmax(-1)  # B * (num_words - 1)
@@ -31,9 +31,6 @@ def get_scene_cap_loss(data_dict, weights):
     # store
     data_dict["cap_loss"] = cap_loss
     data_dict["cap_acc"] = cap_acc
-
-    # Final loss function
-    loss = data_dict["cap_loss"]
 
     # Final loss function
     loss = data_dict["cap_loss"]
