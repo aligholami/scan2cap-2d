@@ -91,7 +91,6 @@ def sanitize_id_coco(
         object_id = IMAGE_ID[7:8]
 
     sanitized = '{}-{}_{}'.format(scene_id, object_id, ann_id)
-
     return sanitized, scene_id, object_id, ann_id
 
 
@@ -125,27 +124,32 @@ def get_iou(box1, box2):
 def sort_by_iou(
         SAMPLE_ID,
         SAMPLE_ID_DETECTIONS,
-        DB
+        GT_DB
 ):
     """
         Takes detections for each sample id, sorts them by IOU descending, and returns a
         SAMPLE_ID_DETECTIONS dictionary with added IOU scores.
     """
+    
+    try:
+        sorted_detections = []
+        target_object_id = int(SAMPLE_ID.split('-')[1].split('_')[0])
+        gt_boxes = np.array(GT_DB['box'][SAMPLE_ID])
+        gt_oids = np.array(GT_DB['objectids'][SAMPLE_ID])
+        target_box_idx = np.where(gt_oids == target_object_id)[0]
+        target_box = gt_boxes[target_box_idx].tolist()[0]
 
-    sorted_detections = []
-    target_object_id = int(SAMPLE_ID.split('-')[1].split('_')[0])
-    gt_boxes = DB['box'][SAMPLE_ID]
-    gt_oids = DB['objectids'][SAMPLE_ID]
-    target_box_idx = np.where(gt_oids == target_object_id)[0]
-    target_box = gt_boxes[target_box_idx].tolist()
+        # CONVERT BOX FORMAT FROM XYWH TO XYXY
+        for item in SAMPLE_ID_DETECTIONS:
+            detected_box = item['bbox']
+            item['iou'] = get_iou(detected_box, target_box)
+            sorted_detections.append(item)
 
-    # CONVERT BOX FORMAT FROM XYWH TO XYXY
-    for item in SAMPLE_ID_DETECTIONS:
-        detected_box = item['bbox']
-        item['iou'] = get_iou(detected_box, target_box)
-        sorted_detections.append(item)
+        sorted_detections = sorted(sorted_detections, key=lambda x: x['iou'], reverse=True)  # descending
 
-    sorted_detections = sorted(sorted_detections, key=lambda x: x['iou'], reverse=True)  # descending
+    except:
+        print("Ignored sample {}".format(SAMPLE_ID))
+        sorted_detections = None
 
     return sorted_detections
 
@@ -153,26 +157,45 @@ def sort_by_iou(
 def export_bbox_pickle_coco(
         MRCNN_DETECTIONS_PATH,
         DB_PATH,
+        GT_DB_PATH,
         RESIZE=(320, 240)
 ):
-    db = h5py.File(DB_PATH, 'W')
+
+    pickle_dir = os.path.dirname(DB_PATH)
+    os.makedirs(pickle_dir, exist_ok=True)
+    db = h5py.File(DB_PATH, 'w')
+    assert os.path.exists(GT_DB_PATH)
+    gt_db = h5py.File(GT_DB_PATH, 'r')
     assert os.path.exists(MRCNN_DETECTIONS_PATH)
     detections = json.load(open(MRCNN_DETECTIONS_PATH))
     print("validating the mask r-cnn predictions.")
     aggregations = {}  # render_id -> list of predictions
     for pred in tqdm(detections):
-        sample_id = sanitize_id_coco(pred['image_id'])
+        x_min, y_min, w, h = pred['bbox']
+        validated_bbox = [x_min, y_min, x_min + w, y_min + h]
+        validated_score = round(pred['score'], 2)
+        pred['bbox'] = validated_bbox
+        pred['score'] = validated_score
+        sample_id, _, _, _ = sanitize_id_coco(pred['image_id'])
         if sample_id in aggregations.keys():  # filter ignored_renders
             aggregations[sample_id].append(pred)
         else:
             aggregations[sample_id] = [pred]
 
     # Sort based on the IoU score with the gt box in that frame/render #####
+    aggregations_sorted = {}
+    ditch_control = 0
     print("sorting the bounding boxes based on IoU.")
     for sample_id, detections in aggregations.items():
-        aggregations[sample] = sort_by_iou(sample_id, detections, db)
+        res = sort_by_iou(sample_id, detections, gt_db)
+        if res is not None:
+            aggregations_sorted[sample_id] = res
+        else:
+            ditch_control += 1
 
-    for sample_id, detections in aggregations.items():
+    assert ditch_control <= 250
+
+    for sample_id, detections in tqdm(aggregations_sorted.items()):
         detections = list(filter(lambda x: x['iou'] >= 0.5, detections))
 
         boxes = []
@@ -183,12 +206,13 @@ def export_bbox_pickle_coco(
         for object_id, d in enumerate(detections):
             scale_x = RESIZE[0] // d['segmentation']['size'][0]
             scale_y = RESIZE[1] // d['segmentation']['size'][1]
-            scaled_box = np.array(
-                [scale_x * d['box'][0], scale_y * d['box'][1], scale_x * d['box'][2], scale_y * d['box'][3]])
+            scaled_box = [scale_x * d['bbox'][0], scale_y * d['bbox'][1], scale_x * d['bbox'][2], scale_y * d['bbox'][3]]
+            scaled_box = np.array(validate_bbox(scaled_box, width=RESIZE[0], height=RESIZE[1]))
             iou = np.array(d['iou'])
             score = np.array(d['score'])
             category = np.array(d['category_id'])
             object_id = np.array(object_id)
+
 
             boxes.append(scaled_box)
             ious.append(iou)
@@ -197,16 +221,16 @@ def export_bbox_pickle_coco(
             object_ids.append(object_id)
 
         if len(boxes) >= 1:
-            boxes = np.vstack(boxes, axis=0)
-            ious = np.vstack(ious, axis=0)
-            scores = np.vstack(scores, axis=0)
-            categories = np.vstack(categories, axis=0)
+            boxes = np.vstack(boxes)
+            ious = np.vstack(ious)
+            scores = np.vstack(scores)
+            categories = np.vstack(categories)
             db.create_dataset('box/{}'.format(sample_id), data=boxes)
             db.create_dataset('ious/{}'.format(sample_id), data=ious)
             db.create_dataset('scores/{}'.format(sample_id), data=scores)
             db.create_dataset('objectids/{}'.format(sample_id), data=object_ids)
             db.create_dataset('categories/{}'.format(sample_id), data=categories)
-
+    
     db.close()
 
 
@@ -278,12 +302,14 @@ def export_image_features(
         DB_PATH,
         BOX,
         SAMPLE_LIST,
+        IGNORED_SAMPLES,
         DEVICE,
         RESIZE
 ):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     fd_train = FrameData(
+        ignored_samples=IGNORED_SAMPLES,
         key_format=KEY_FORMAT,
         resize=RESIZE,
         frame_path=IMAGE,
@@ -323,6 +349,7 @@ def export_image_features(
 
 
 def export_bbox_features(
+        IGNORED_SAMPLES,
         KEY_FORMAT,
         IMAGE,
         DB_PATH,
@@ -335,6 +362,7 @@ def export_bbox_features(
                                      std=[0.229, 0.224, 0.225])
 
     fd_train = FrameData(
+        ignored_samples=IGNORED_SAMPLES,
         key_format=KEY_FORMAT,
         resize=RESIZE,
         frame_path=IMAGE,

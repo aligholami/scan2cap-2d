@@ -43,7 +43,6 @@ def parse_arg():
 
 def prep_main(exp_type, dataset, viewpoint, box):
     run_config = get_config(exp_type, dataset, viewpoint, box)
-    sample_list, scene_list = get_samples(mode='all', key_type=run_config.TYPES.KEY_TYPE)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # for the given dataset, viewpoint and box mode
@@ -55,12 +54,16 @@ def prep_main(exp_type, dataset, viewpoint, box):
 
     # 2. Run on CPU
     if box == 'mrcnn':
+        sample_list, scene_list = get_samples(mode='val', key_type=run_config.TYPES.KEY_TYPE)
         export_bbox_pickle_coco(
             MRCNN_DETECTIONS_PATH=run_config.PATH.MRCNN_DETECTIONS_PATH,
             DB_PATH=run_config.PATH.DB_PATH,
+            GT_DB_PATH=run_config.PATH.GT_DB_PATH, # used for IoU calculation
             RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
         )
-    if box == 'oracle' or 'votenet':
+
+    elif box == 'oracle' or 'votenet':
+        sample_list, scene_list = get_samples(mode='all', key_type=run_config.TYPES.KEY_TYPE)
         export_bbox_pickle_raw(
             AGGR_JSON_PATH=run_config.PATH.AGGR_JSON,
             SCANNET_V2_TSV=run_config.PATH.SCANNET_V2_TSV,
@@ -70,13 +73,16 @@ def prep_main(exp_type, dataset, viewpoint, box):
             DB_PATH=run_config.PATH.DB_PATH,
             RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT)
         )
-
+    else:
+        raise NotImplementedError('Box mode {} is not implemented.'.format(box))
+        
     # 3. Run on Device
     export_image_features(
         KEY_FORMAT=run_config.TYPES.KEY_FORMAT,
         RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
         DB_PATH=run_config.PATH.DB_PATH,
+        IGNORED_SAMPLES=run_config.PATH.IGNORED_SAMPLES,
         BOX=False,
         SAMPLE_LIST=sample_list,
         DEVICE=device
@@ -88,6 +94,7 @@ def prep_main(exp_type, dataset, viewpoint, box):
         RESIZE=(run_config.SCAN_WIDTH, run_config.SCAN_HEIGHT),
         IMAGE=run_config.PATH.IMAGE,
         DB_PATH=run_config.PATH.DB_PATH,
+        IGNORED_SAMPLES=run_config.PATH.IGNORED_SAMPLES,
         BOX=True,
         SAMPLE_LIST=sample_list,
         DEVICE=device

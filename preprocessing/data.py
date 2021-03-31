@@ -1,5 +1,6 @@
 import os
 import torch
+import json
 import pickle
 import math
 import h5py
@@ -10,7 +11,8 @@ from tqdm import tqdm
 
 
 class FrameData(Dataset):
-    def __init__(self, key_format, resize, frame_path, db_path, box, input_list, transforms):
+    def __init__(self, ignored_samples, key_format, resize, frame_path, db_path, box, input_list, transforms):
+        self.ignored_samples = ignored_samples
         self.new_width, self.new_height = resize
         self.key_format = key_format
         self.frames_path = frame_path
@@ -34,10 +36,13 @@ class FrameData(Dataset):
         target_sample_keys = [item['sample_id'] for item in self.input_list]
         db_keys = list(self.db['box'].keys())
         ignored_keys = [k for k in target_sample_keys if k not in db_keys]
-
-        print("Number of ignored keys: {}".format(len(ignored_keys)))
-        assert len(ignored_keys) < 15   # problematic keys
+        ignored_keys += self.purposefully_ignored_keys()
+        assert len(ignored_keys) < 2000   # problematic keys
         self.ignored_keys = ignored_keys
+
+    def purposefully_ignored_keys(self):
+        ignored_samples = json.load(open(self.ignored_samples))
+        return ignored_samples
 
     def update_samples(self):
         updated_sample_list = []

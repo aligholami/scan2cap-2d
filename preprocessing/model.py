@@ -34,7 +34,8 @@ class ResNet101NoFC(nn.Module):
                 cropped_tensor = cropped_tensor.unsqueeze(0)
                 try:
                     f = self.resnet(cropped_tensor.to(self.device))
-                except RuntimeError:
+                except BaseException as be:
+                    print(be)
                     print("target box: ",boxes[i][j])
                     print("cropped: ", cropped_tensor.shape)
                 bbox_object_id = int(object_ids[i][j].item())
