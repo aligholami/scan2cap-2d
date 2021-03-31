@@ -103,7 +103,7 @@ class ScanReferDataset(Dataset):
                 pool_ids = np.delete(object_ids, target_idx, axis=0)
 
             else:
-                random_idx = random.sample(population=list(range(box_feats.shape[0])), k=1)
+                random_idx = 0  # sorted samples in mrcnn mode
                 target_feat = np.concatenate((box_feats[random_idx], boxes[random_idx]), axis=1)
                 boxes = np.delete(boxes, random_idx, axis=0)
                 pool_feats = np.delete(box_feats, random_idx, axis=0)
