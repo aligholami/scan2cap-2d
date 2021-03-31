@@ -3,6 +3,7 @@ from random import sample
 import json
 import torch
 import h5py
+import math
 import numpy as np
 from PIL import Image
 from tqdm import tqdm
@@ -204,9 +205,9 @@ def export_bbox_pickle_coco(
         categories = []
         object_ids = []
         for object_id, d in enumerate(detections):
-            scale_x = RESIZE[0] // d['segmentation']['size'][0]
-            scale_y = RESIZE[1] // d['segmentation']['size'][1]
-            scaled_box = [scale_x * d['bbox'][0], scale_y * d['bbox'][1], scale_x * d['bbox'][2], scale_y * d['bbox'][3]]
+            scale_x = RESIZE[0] / d['segmentation']['size'][0]
+            scale_y = RESIZE[1] / d['segmentation']['size'][1]
+            scaled_box = [math.floor(scale_x * d['bbox'][0]), math.floor(scale_y * d['bbox'][1]), math.ceil(scale_x * d['bbox'][2]), math.ceil(scale_y * d['bbox'][3])]
             scaled_box = np.array(validate_bbox(scaled_box, width=RESIZE[0], height=RESIZE[1]))
             iou = np.array(d['iou'])
             score = np.array(d['score'])
@@ -258,8 +259,9 @@ def export_bbox_pickle_raw(
         try:
             label_img = np.array(
                 Image.open(os.path.join(INSTANCE_MASK_PATH.format(scene_id, sample_id))))
-            scale_x = RESIZE[0] // label_img.shape[0]
-            scale_y = RESIZE[1] // label_img.shape[1]
+
+            scale_x = RESIZE[0] / label_img.shape[1]
+            scale_y = RESIZE[1] / label_img.shape[0]
         except FileNotFoundError as fnfe:
             print(fnfe)
             continue
@@ -277,7 +279,7 @@ def export_bbox_pickle_raw(
             target_coords = np.where(label_img == label)
             x_max, y_max = np.max(target_coords[1], axis=0), np.max(target_coords[0], axis=0)
             x_min, y_min = np.min(target_coords[1], axis=0), np.min(target_coords[0], axis=0)
-            bbox_scaled = [x_min * scale_x, y_min * scale_y, x_max * scale_x, y_max * scale_y]
+            bbox_scaled = [math.floor(x_min * scale_x), math.floor(y_min * scale_y), math.ceil(x_max * scale_x), math.ceil(y_max * scale_y)]
             bbox_validated = validate_bbox(bbox_scaled, RESIZE[0], RESIZE[1])
             bbox.append(np.array(bbox_validated, dtype=np.float))
             object_ids.append(np.array(label - 1, dtype=np.uint8))

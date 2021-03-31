@@ -37,6 +37,7 @@ class ResNet101NoFC(nn.Module):
                 except BaseException as be:
                     print(be)
                     print("target box: ",boxes[i][j])
+                    print("image: ", image[i].shape)
                     print("cropped: ", cropped_tensor.shape)
                 bbox_object_id = int(object_ids[i][j].item())
                 frame_object_features[str(bbox_object_id)] = f

@@ -72,7 +72,7 @@ def adapt_sample_keys(sample_list, key_type):
     return up_sl
 
 def get_samples(mode, key_type):
-    subset = False
+    subset = True
     if subset:
         subset_range = 200
     else:
