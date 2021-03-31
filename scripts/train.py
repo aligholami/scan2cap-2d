@@ -102,8 +102,8 @@ def get_solver(args, run_config, dataset, dataloader):
         root = os.path.join(run_config.PATH.OUTPUT_ROOT, stamp)
         os.makedirs(root, exist_ok=True)
 
-    LR_DECAY_STEP = [3, 7, 10, 20, 50, 90]
-    LR_DECAY_RATE = 0.6
+    LR_DECAY_STEP = [1, 2, 4, 8, 10, 12]
+    LR_DECAY_RATE = 0.8
 
     solver = Solver(
         run_config=run_config,

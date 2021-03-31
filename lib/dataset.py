@@ -47,13 +47,19 @@ class ScanReferDataset(Dataset):
         assert os.path.exists(self.run_config.PATH.DB_PATH)
         self.db = h5py.File(self.run_config.PATH.DB_PATH, 'r')
     
+    def purposefully_ignored_keys(self):
+        ignored_samples = json.load(open(self.run_config.PATH.IGNORED_SAMPLES))
+        return ignored_samples
+
     def verify_keys(self):
+        # Part 1
         target_sample_keys = [item['sample_id'] for item in self.sample_list]
         db_keys = list(self.db['box'].keys())
         ignored_keys = [k for k in target_sample_keys if k not in db_keys]
-
+        # Part 2
+        ignored_keys += self.purposefully_ignored_keys()
         print("Number of ignored keys: {}".format(len(ignored_keys)))
-        assert len(ignored_keys) < 15   # problematic keys
+        assert len(ignored_keys) < 200   # problematic keys
         self.ignored_keys = ignored_keys
 
     def update_samples(self):

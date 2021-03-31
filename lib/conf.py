@@ -71,13 +71,6 @@ def adapt_sample_keys(sample_list, key_type):
 
     return up_sl
 
-def filter_ignored_samples(sample_list):
-    print("Number of samples before ignoring: ", len(sample_list))
-    ignored_samples = json.load(open(CONF.PATH.IGNORED_SAMPLES))
-    sample_list = [item for item in sample_list if not '{}-{}_{}'.format(item['scene_id'], item['object_id'], item['ann_id']) in ignored_samples]
-    print("Number of samples after ignoring: ", len(sample_list))
-    return sample_list
-
 def get_samples(mode, key_type):
     subset = False
     if subset:
@@ -90,18 +83,18 @@ def get_samples(mode, key_type):
     scene_list = []
     if mode == 'train':
         t = json.load(open(CONF.PATH.SCANREFER_TRAIN))[:subset_range]
-        sample_list = filter_ignored_samples(t) 
+        sample_list = t
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     if mode == 'val':
         v = json.load(open(CONF.PATH.SCANREFER_VAL))[:subset_range]
-        sample_list = filter_ignored_samples(v)
+        sample_list = v
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     if mode == 'all':
         t = json.load(open(CONF.PATH.SCANREFER_TRAIN))[:subset_range]
         v = json.load(open(CONF.PATH.SCANREFER_VAL))[:subset_range]
-        sample_list = filter_ignored_samples(t + v)
+        sample_list = t + v
         scene_list = list(set([item['scene_id'] for item in sample_list]))
 
     sample_list = adapt_sample_keys(sample_list, key_type)
