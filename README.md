@@ -3,44 +3,26 @@
 ## Setup
 
 ### Step 1 - Download & Unzip the Required Files
-* Download the `color` and `instance` renders for one of the following experiments:
-1. Annotated Viewpoints:
-    * [annotated_viewpoints_color.zip](https://www.google.com)
-    * [annotated_viewpoints_instance.zip](https://www.google.com)
+* Download the `hdf5` databaes for one of the following viewpoint types:
 
-2. Estimated Viewpoints (3D-2D Backprojected)
-    * [annotated_viewpoints_color.zip](https://www.google.com)
-    * [annotated_viewpoints_instance.zip](https://www.google.com)
+1. Annotated Viewpoint Database:
+    * [ant.h5](https://www.google.com)
 
-3. Bird's Eye Viewpoints (Top-Down)
-    * [annotated_viewpoints_color.zip](https://www.google.com)
-    * [annotated_viewpoints_instance.zip](https://www.google.com)
+2. Estimated Viewpoint Database (3D-2D Backprojected)
+    * [est.h5](https://www.google.com)
+
+3. Bird's Eye Viewpoint Database (Top-Down)
+    * [bev.h5](https://www.google.com)
 
 * Download the ScanRefer `train` and `validation` splits:
     * [scanrefer.zip](https://www.google.com)
 
 
 and unzip the downloaded files to your desired location.
+Each database contains `color`, `object bounding box`, `semantic label` and `object id` corresponding to each sample in the desired `ScanRefer` split. 
 
---- 
-### Step 2 - Set Proper Paths
-Set the following paths in `scan2cap-2d/lib/conf.py` based on your needs:
+Alternatively, you can manually render color and instance masks and use the code provided in `preprocessing` to obtain these databases. Here is a quick guide on how to use `preprocessing` module:
 
-```
-CONF.PATH.DATA_ROOT = '/home/user/data'
-CONF.PATH.CODE_ROOT = '/home/user/code'
-CONF.PATH.SCANNET_DIR = "/scannet/public/v2"
-```
----
-
-### Step 3 - Run!
-
-    ap.add_argument("--exp_type", default="nret", help="retrieval or nonretrieval")
-    ap.add_argument("--dataset", default="scanrefer", help="scanrefer or referit")
-    ap.add_argument("--viewpoint", default="annotated", help="annotated, estimated or bev")
-    ap.add_argument("--box", default="oracle", help="oracle, mrcnn or votenet")
-
-1. Preprocessing
 ```
 python main.py --prep --exp_type $ET --dataset $DS --viewpoint $VP --box $BX
 ```
@@ -54,7 +36,23 @@ where variables can take the following permutations:
 | scanrefer | topdown | oracle | Extracts bird's eye view bounding boxes, bounding box features and global features from bird's eye viewpoints. 
 ---
 
-2. Training and Evaluation
+## Training and Evaluation
+Set the following paths in `scan2cap-2d/lib/conf.py` based on your needs:
+
+```
+CONF.PATH.DATA_ROOT = '/home/user/data'
+CONF.PATH.CODE_ROOT = '/home/user/code'
+CONF.PATH.SCANNET_DIR = "/scannet/public/v2"
+```
+---
+Command-line arguments to run the training and/or evaluation; permutations are the same as provided in the `preprocessing` step.
+
+    ap.add_argument("--exp_type", default="nret", help="retrieval or nonretrieval")
+    ap.add_argument("--dataset", default="scanrefer", help="scanrefer or referit")
+    ap.add_argument("--viewpoint", default="annotated", help="annotated, estimated or bev")
+    ap.add_argument("--box", default="oracle", help="oracle, mrcnn or votenet")
+
+1. Training and Evaluation
 ```
 python main.py --train --exp_type $ET --dataset $DS --viewpoint $VP --box $BX --model $MD --visual_feat $VF...
 ```
@@ -71,7 +69,7 @@ other options include:
  --seed 42
 ```
 
-3. Evaluation Only
+2. Evaluation Only
 ```
 python main.py --eval --exp_type $ET --dataset $DS --viewpoint $VP --box $BX --folder $EN
 ```
