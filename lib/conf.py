@@ -106,7 +106,7 @@ def get_config(exp_type, dataset, viewpoint, box):
     CONF.TYPES = EasyDict()
     assert exp_type in ['nret', 'ret']
     assert dataset in ['scanrefer', 'referit']
-    assert viewpoint in ['annotated', 'estimated', 'topdown']
+    assert viewpoint in ['annotated', 'estimated', 'bev']
     assert box in ['oracle', 'mrcnn', 'votenet']
 
     selected_dataset = dataset
@@ -143,7 +143,7 @@ def get_config(exp_type, dataset, viewpoint, box):
             CONF.TYPES.KEY_TYPE = 'kk'
             CONF.TYPES.KEY_FORMAT = '{}-{}'
 
-        if selected_viewpoint == 'topdown':
+        if selected_viewpoint == 'bev':
             CONF.PATH.IMAGE = os.path.join(data_root, 'topdown-based/renders/')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks/{}/{}.vertexAttribute.encoded.png')
             CONF.PATH.DB_PATH = os.path.join(data_root, 'td-based/db_td.h5')

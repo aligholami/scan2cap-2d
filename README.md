@@ -37,7 +37,7 @@ CONF.PATH.SCANNET_DIR = "/scannet/public/v2"
 
     ap.add_argument("--exp_type", default="nret", help="retrieval or nonretrieval")
     ap.add_argument("--dataset", default="scanrefer", help="scanrefer or referit")
-    ap.add_argument("--viewpoint", default="annotated", help="annotated, estimated or topdown")
+    ap.add_argument("--viewpoint", default="annotated", help="annotated, estimated or bev")
     ap.add_argument("--box", default="oracle", help="oracle, mrcnn or votenet")
 
 1. Preprocessing
