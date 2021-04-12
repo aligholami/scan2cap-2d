@@ -175,7 +175,7 @@ class ShowAttendAndTell(TDBUCaptionBase):
 
         # batch_size, object_feat_size
         t_feat = t_feat.squeeze()
-        num_words = des_lens[0]
+        num_words = des_lens.max()
         batch_size = des_lens.shape[0]
         # recurrent from 0 to max_len - 2
         outputs = []

@@ -235,6 +235,14 @@ def export_bbox_pickle_coco(
     db.close()
 
 
+
+def load_proper_label_img(instance_mask_path, scene_id, sample_id):    
+    
+    label_path = os.path.join(instance_mask_path.format(scene_id, sample_id))
+    label_img = np.array(Image.open(label_path))    
+
+    return label_img
+
 def export_bbox_pickle_raw(
         AGGR_JSON_PATH,
         SCANNET_V2_TSV,
@@ -248,18 +256,19 @@ def export_bbox_pickle_raw(
     raw2label, label2class = get_label_info(SCANNET_V2_TSV=SCANNET_V2_TSV)
     pickle_dir = os.path.dirname(DB_PATH)
     os.makedirs(pickle_dir, exist_ok=True)
-
+    
+    print("db location: {}".format(DB_PATH))
     print("exporting image bounding boxes...")
-
+        
     db = h5py.File(DB_PATH, 'w')
     for gg in tqdm(SAMPLE_LIST):
         sample_id = gg['sample_id']
         scene_id = gg['scene_id']
+        object_id = gg['object_id']
+        ann_id = gg['ann_id']
 
         try:
-            label_img = np.array(
-                Image.open(os.path.join(INSTANCE_MASK_PATH.format(scene_id, sample_id))))
-
+            label_img = load_proper_label_img(INSTANCE_MASK_PATH, scene_id, sample_id)
             scale_x = RESIZE[0] / label_img.shape[1]
             scale_y = RESIZE[1] / label_img.shape[0]
         except FileNotFoundError as fnfe:
@@ -289,9 +298,10 @@ def export_bbox_pickle_raw(
             bbox = np.vstack(bbox)
             oids = np.vstack(object_ids)
             slabels = np.vstack(sem_labels)
-            db.create_dataset('box/{}'.format(sample_id), data=bbox)
-            db.create_dataset('objectids/{}'.format(sample_id), data=oids)
-            db.create_dataset('semlabels/{}'.format(sample_id), data=slabels)
+            write_key = '{}-{}_{}'.format(scene_id, object_id, ann_id)
+            db.create_dataset('box/{}'.format(write_key), data=bbox)
+            db.create_dataset('objectids/{}'.format(write_key), data=oids)
+            db.create_dataset('semlabels/{}'.format(write_key), data=slabels)
 
     db.close()
 

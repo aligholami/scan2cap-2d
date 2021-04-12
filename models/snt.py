@@ -90,7 +90,7 @@ class ShowAndTell(CaptionBase):
         des_lens = data_dict["lang_len"]  # batch_size
         t_feat = data_dict["inp_feat"]
 
-        num_words = des_lens[0]
+        num_words = des_lens.max()
         batch_size = des_lens.shape[0]
         t_feat = self.map_feat(t_feat.squeeze())
         
@@ -140,7 +140,7 @@ class ShowAndTell(CaptionBase):
         word_embs = data_dict["lang_feat"]  # batch_size, max_len, emb_size
         des_lens = data_dict["lang_len"]  # batch_size
         t_feat = data_dict["inp_feat"]
-        num_words = des_lens[0]
+        num_words = des_lens.max()
         batch_size = des_lens.shape[0]
 
         # transform the features

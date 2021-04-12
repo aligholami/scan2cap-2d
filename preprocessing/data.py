@@ -31,23 +31,26 @@ class FrameData(Dataset):
     def prepare_db(self):
         assert os.path.exists(self.db_path)
         self.db = h5py.File(self.db_path, 'r')
-    
-    def verify_keys(self):
-        target_sample_keys = [item['sample_id'] for item in self.input_list]
-        db_keys = list(self.db['box'].keys())
-        ignored_keys = [k for k in target_sample_keys if k not in db_keys]
-        ignored_keys += self.purposefully_ignored_keys()
-        assert len(ignored_keys) < 2000   # problematic keys
-        self.ignored_keys = ignored_keys
 
     def purposefully_ignored_keys(self):
         ignored_samples = json.load(open(self.ignored_samples))
         return ignored_samples
 
+    def verify_keys(self):
+        # Part 1
+        target_sample_keys = ['{}-{}_{}'.format(item['scene_id'], item['object_id'], item['ann_id']) for item in self.input_list]
+        db_keys = list(self.db['box'].keys())
+        ignored_keys = [k for k in target_sample_keys if k not in db_keys]
+        # Part 2
+        ignored_keys += self.purposefully_ignored_keys()
+        print("Number of ignored keys: {}".format(len(ignored_keys)))
+        assert len(ignored_keys) < 250   # problematic keys
+        self.ignored_keys = ignored_keys
+
     def update_samples(self):
         updated_sample_list = []
         for sample in self.input_list:
-            kf = sample['sample_id']
+            kf = '{}-{}_{}'.format(sample['scene_id'], sample['object_id'], sample['ann_id'])
             if kf not in self.ignored_keys:
                 updated_sample_list.append(sample)
         
@@ -62,8 +65,10 @@ class FrameData(Dataset):
 
     def __getitem__(self, idx):
         input_item = self.verified_list[idx]
-        sample_id = input_item['sample_id']
         scene_id = input_item['scene_id']
+        object_id = input_item['object_id']
+        ann_id = input_item['ann_id']
+        sample_id = '{}-{}_{}'.format(scene_id, object_id, ann_id)
 
         frame_tensor = self.load_image(
             image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(sample_id))

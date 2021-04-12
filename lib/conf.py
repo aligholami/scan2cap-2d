@@ -74,7 +74,7 @@ def adapt_sample_keys(sample_list, key_type):
 def get_samples(mode, key_type):
     subset = True
     if subset:
-        subset_range = 200
+        subset_range = 20
     else:
         subset_range = None
 
@@ -144,6 +144,7 @@ def get_config(exp_type, dataset, viewpoint, box):
             CONF.TYPES.KEY_FORMAT = '{}-{}'
 
         if selected_viewpoint == 'bev':
+            assert selected_box_mode == 'oracle'
             CONF.PATH.IMAGE = os.path.join(data_root, 'topdown-based/renders/')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks/{}/{}.vertexAttribute.encoded.png')
             CONF.PATH.DB_PATH = os.path.join(data_root, 'td-based/db_td.h5')

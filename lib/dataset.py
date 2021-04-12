@@ -53,7 +53,7 @@ class ScanReferDataset(Dataset):
 
     def verify_keys(self):
         # Part 1
-        target_sample_keys = [item['sample_id'] for item in self.sample_list]
+        target_sample_keys = ['{}-{}_{}'.format(item['scene_id'], item['object_id'], item['ann_id']) for item in self.sample_list]
         db_keys = list(self.db['box'].keys())
         ignored_keys = [k for k in target_sample_keys if k not in db_keys]
         # Part 2
@@ -65,7 +65,7 @@ class ScanReferDataset(Dataset):
     def update_samples(self):
         updated_sample_list = []
         for sample in self.sample_list:
-            kf = sample['sample_id']
+            kf = '{}-{}_{}'.format(sample['scene_id'], sample['object_id'], sample['ann_id'])
             if kf not in self.ignored_keys:
                 updated_sample_list.append(sample)
         
