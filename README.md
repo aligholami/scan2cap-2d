@@ -19,7 +19,7 @@
 
 
 and unzip the downloaded files to your desired location.
-Each database contains `color`, `object bounding box`, `semantic label` and `object id` corresponding to each sample in the desired `ScanRefer` split. 
+Each database contains `global features`, `object features`, `object bounding box`, `semantic label` and `object id` corresponding to each sample in the desired `ScanRefer` split. 
 
 Alternatively, you can manually render color and instance masks and use the code provided in `preprocessing` to obtain these databases. Here is a quick guide on how to use `preprocessing` module:
 
