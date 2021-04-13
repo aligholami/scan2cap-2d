@@ -45,7 +45,7 @@ class FrameData(Dataset):
         # Part 2
         ignored_keys += self.purposefully_ignored_keys()
         print("Number of ignored keys: {}".format(len(ignored_keys)))
-        assert len(ignored_keys) < 3000   # problematic keys
+        # assert len(ignored_keys) < 3000   # problematic keys
         self.ignored_keys = ignored_keys
 
     def update_samples(self):

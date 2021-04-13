@@ -31,7 +31,10 @@ def remove_sos_eos(cap_dictionary):
 def prepare_corpus(scanrefer, max_len):
     corpus = {}
     for data in scanrefer:
-        sample_id = data['sample_id']
+        scene_id = data['scene_id']
+        object_id = data['object_id']
+        ann_id = data['ann_id']
+        sample_id = '{}-{}_{}'.format(scene_id, object_id, ann_id)
         # sample_id = "{}|{}".format(data['scene_id'], data['object_id'])
         token = data['token'][:max_len]
         description = " ".join(token)
