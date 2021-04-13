@@ -59,7 +59,7 @@ class ScanReferDataset(Dataset):
         # Part 2
         ignored_keys += self.purposefully_ignored_keys()
         print("Number of ignored keys: {}".format(len(ignored_keys)))
-        assert len(ignored_keys) < 250   # problematic keys
+        # assert len(ignored_keys) < 3000   # problematic keys
         self.ignored_keys = ignored_keys
 
     def update_samples(self):
@@ -81,8 +81,10 @@ class ScanReferDataset(Dataset):
     def __getitem__(self, idx):
         start = time.time()
         item = self.verified_list[idx]
-        sample_id = item['sample_id']
+        scene_id = item['scene_id']
         target_id = item['object_id']
+        ann_id = item['ann_id']
+        sample_id = '{}-{}_{}'.format(scene_id, target_id, ann_id)
         lang_feat = self.lang[sample_id]
         lang_ids = np.array(self.lang_ids[sample_id])
         lang_len = len(item["token"]) + 2
@@ -93,7 +95,7 @@ class ScanReferDataset(Dataset):
             box_feats = np.array(db['boxfeat'][sample_id])
             object_ids = np.array(db['objectids'][sample_id])
             global_feat = np.array(db['globalfeat'][sample_id])
-
+            print("object_ids: ", object_ids.shape)
             target_idx = np.where(object_ids == int(target_id))[0]
             if target_idx.shape[0] == 1:
                 target_feat = np.concatenate((box_feats[target_idx], boxes[target_idx]), axis=1)
@@ -104,7 +106,7 @@ class ScanReferDataset(Dataset):
 
             else:
                 random_idx = 0  # sorted samples in mrcnn mode
-                target_feat = np.concatenate((box_feats[random_idx], boxes[random_idx]), axis=1)
+                target_feat = np.concatenate((box_feats[random_idx][None, :], boxes[random_idx][None, :]), axis=1)
                 boxes = np.delete(boxes, random_idx, axis=0)
                 pool_feats = np.delete(box_feats, random_idx, axis=0)
                 pool_feats = np.concatenate((pool_feats, boxes), axis=1)
@@ -185,7 +187,10 @@ class ScanReferDataset(Dataset):
         label = {}
         max_len = self.run_config.MAX_DESC_LEN
         for data in self.sample_list:
-            sample_id = data['sample_id']
+            scene_id = data['scene_id']
+            object_id = data['object_id']
+            ann_id = data['ann_id']
+            sample_id = '{}-{}_{}'.format(scene_id, object_id, ann_id)
 
             if sample_id not in lang:
                 lang[sample_id] = {}

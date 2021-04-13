@@ -20,6 +20,7 @@ class FrameData(Dataset):
         self.box = box
         self.input_list = input_list
         self.transforms = transforms
+        print("BOX: ", self.box)
         self.pre_training_verification()
 
     def pre_training_verification(self):
@@ -44,7 +45,7 @@ class FrameData(Dataset):
         # Part 2
         ignored_keys += self.purposefully_ignored_keys()
         print("Number of ignored keys: {}".format(len(ignored_keys)))
-        assert len(ignored_keys) < 250   # problematic keys
+        assert len(ignored_keys) < 3000   # problematic keys
         self.ignored_keys = ignored_keys
 
     def update_samples(self):
@@ -68,17 +69,18 @@ class FrameData(Dataset):
         scene_id = input_item['scene_id']
         object_id = input_item['object_id']
         ann_id = input_item['ann_id']
-        sample_id = '{}-{}_{}'.format(scene_id, object_id, ann_id)
+        sample_id = self.key_format.format(scene_id, object_id, ann_id)
 
         frame_tensor = self.load_image(
             image_path=os.path.join(self.frames_path, scene_id, '{}.png'.format(sample_id))
         )
 
         # load bbox info
+        sample_id = '{}-{}_{}'.format(scene_id, object_id, ann_id)
         with h5py.File(self.db_path, 'r') as db:
-            boxes = np.array(db['box'][sample_id])
-            bbox_ids = np.array(db['objectids'][sample_id])
             if self.box:
+                boxes = np.array(db['box'][sample_id])
+                bbox_ids = np.array(db['objectids'][sample_id])
                 ret = {
                     'frame_tensor': frame_tensor,
                     'bbox_info': boxes,
@@ -115,43 +117,3 @@ class FrameData(Dataset):
         sample_id_list = [d['sample_id'] for d in data]
 
         return tensor_list, bbox_list, bbox_ids, sample_id_list
-
-    def write_frame_features(self, batches):
-        """
-            writes extracted features as numpy arrays.
-            batches is a list of dict. Each dict has a batch of results
-            in it.
-        """
-        db = h5py.File(self.db_path, 'a')
-        target_dir = os.path.dirname(self.db_path)
-        assert os.path.exists(target_dir)
-
-        for batch in tqdm(batches):
-            batch_size = len(batch['sample_ids'])
-            for i in range(batch_size):
-                k = '{}'.format(batch['sample_ids'][i])
-                db.create_dataset('globalfeat/{}'.format(k), data=batch['frame_features'][i].detach().cpu().numpy())
-
-        db.close()
-
-    def write_box_features(self, batches):
-        """
-            writes extracted features as numpy arrays.
-            batches is a list of dict. Each dict has a batch of results
-            in it.
-        """
-        db = h5py.File(self.db_path, 'a')
-        target_dir = os.path.dirname(self.db_path)
-        assert os.path.exists(target_dir)
-
-        for batch in tqdm(batches):
-            batch_size = len(batch['sample_ids'])
-            for i in range(batch_size):
-                frame_object_features = batch['proposals_features'][i]
-                sample_id = batch['sample_ids'][i]
-                object_ids = np.array(list(frame_object_features.keys()), dtype=np.uint8)
-                features = np.vstack([item.squeeze().cpu().numpy() for item in list(frame_object_features.values())])
-                db.create_dataset('boxobjectid/{}'.format(sample_id), data=object_ids)
-                db.create_dataset('boxfeat/{}'.format(sample_id), data=features)        
-
-        db.close()

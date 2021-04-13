@@ -71,6 +71,16 @@ def validate_bbox(xyxy, width, height):
             y_min -= fix
         elif y_max < height - fix:
             y_max += fix
+    
+    try:
+        assert y_max <= height
+        assert x_max <= width
+
+    except AssertionError:
+        print("ymax: ", y_max)
+        print("xmax: ", x_max)
+        print("height and width: {}, {}".format(height, width))
+
 
     return [x_min, y_min, x_max, y_max]
 
@@ -205,9 +215,9 @@ def export_bbox_pickle_coco(
         categories = []
         object_ids = []
         for object_id, d in enumerate(detections):
-            scale_x = RESIZE[0] / d['segmentation']['size'][0]
-            scale_y = RESIZE[1] / d['segmentation']['size'][1]
-            scaled_box = [math.floor(scale_x * d['bbox'][0]), math.floor(scale_y * d['bbox'][1]), math.ceil(scale_x * d['bbox'][2]), math.ceil(scale_y * d['bbox'][3])]
+            scale_x = RESIZE[0] / d['segmentation']['size'][1]
+            scale_y = RESIZE[1] / d['segmentation']['size'][0]
+            scaled_box = [math.floor(scale_x * d['bbox'][0]), math.floor(scale_y * d['bbox'][1]), math.ceil(scale_x * d['bbox'][2]) - 1, math.ceil(scale_y * d['bbox'][3]) - 1]
             scaled_box = np.array(validate_bbox(scaled_box, width=RESIZE[0], height=RESIZE[1]))
             iou = np.array(d['iou'])
             score = np.array(d['score'])
@@ -225,6 +235,7 @@ def export_bbox_pickle_coco(
             boxes = np.vstack(boxes)
             ious = np.vstack(ious)
             scores = np.vstack(scores)
+            object_ids = np.vstack(object_ids)
             categories = np.vstack(categories)
             db.create_dataset('box/{}'.format(sample_id), data=boxes)
             db.create_dataset('ious/{}'.format(sample_id), data=ious)
@@ -288,7 +299,7 @@ def export_bbox_pickle_raw(
             target_coords = np.where(label_img == label)
             x_max, y_max = np.max(target_coords[1], axis=0), np.max(target_coords[0], axis=0)
             x_min, y_min = np.min(target_coords[1], axis=0), np.min(target_coords[0], axis=0)
-            bbox_scaled = [math.floor(x_min * scale_x), math.floor(y_min * scale_y), math.ceil(x_max * scale_x), math.ceil(y_max * scale_y)]
+            bbox_scaled = [math.floor(x_min * scale_x), math.floor(y_min * scale_y), math.ceil(x_max * scale_x) - 1, math.ceil(y_max * scale_y) - 1]
             bbox_validated = validate_bbox(bbox_scaled, RESIZE[0], RESIZE[1])
             bbox.append(np.array(bbox_validated, dtype=np.float))
             object_ids.append(np.array(label - 1, dtype=np.uint8))
@@ -340,22 +351,23 @@ def export_image_features(
     model = ResNet101NoFC(pretrained=True, progress=True, device=DEVICE, mode='frame2feat').to(DEVICE)
     model.eval()
 
-    extracted_batches = []
     print("Frame feature extraction started.")
+
+    db = h5py.File(DB_PATH, 'a')
+    target_dir = os.path.dirname(DB_PATH)
+    assert os.path.exists(target_dir)
 
     for i, f in enumerate(tqdm(data_loader)):
         with torch.no_grad():
             tensor_list, bbox_list, bbox_ids, sample_id_list = f
             frame_features = model(tensor_list, None, None).to('cuda')
-            extracted_batches.append(
-                {
-                    'frame_features': frame_features,
-                    'sample_ids': sample_id_list
-                }
-            )
+            batch_size = len(tensor_list)
+            for i in range(batch_size):
+                k = '{}'.format(sample_id_list[i])
+                db.create_dataset('globalfeat/{}'.format(k), data=frame_features[i].detach().cpu().numpy())
 
-    print("Saving extracted features.")
-    fd_train.write_frame_features(extracted_batches)
+    print("Saved extracted features.")
+    db.close()
 
     return None
 
@@ -385,7 +397,7 @@ def export_bbox_features(
     )
 
     conf = {
-        'batch_size': 128,
+        'batch_size': 64,
         'num_workers': 6
     }
 
@@ -393,7 +405,10 @@ def export_bbox_features(
     model = ResNet101NoFC(pretrained=True, progress=True, device=DEVICE, mode='bbox2feat').to(DEVICE)
     model.eval()
 
-    extracted_batches = []
+    db = h5py.File(DB_PATH, 'a')
+    target_dir = os.path.dirname(DB_PATH)
+    assert os.path.exists(target_dir)
+
     print("Box feature extraction started.")
 
     for i, f in enumerate(tqdm(data_loader)):
@@ -401,14 +416,16 @@ def export_bbox_features(
 
         with torch.no_grad():
             batch_feats = model(tensor_list, bbox_list, bbox_ids)
-            extracted_batches.append(
-                {
-                    'proposals_features': batch_feats,
-                    'sample_ids': sample_id_list
-                }
-            )
+            batch_size = len(tensor_list)
+            for i in range(batch_size):
+                frame_object_features = batch_feats[i]
+                sample_id = sample_id_list[i]
+                object_ids = np.array(list(frame_object_features.keys()), dtype=np.uint8)
+                features = np.vstack([item.squeeze().cpu().numpy() for item in list(frame_object_features.values())])
+                db.create_dataset('boxobjectid/{}'.format(sample_id), data=object_ids)
+                db.create_dataset('boxfeat/{}'.format(sample_id), data=features)        
 
-    print("Saving extracted features.")
-    fd_train.write_box_features(extracted_batches)
-
+    print("Saved extracted features.")
+    db.close()
+    
     return None
