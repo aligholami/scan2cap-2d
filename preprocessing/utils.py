@@ -283,7 +283,7 @@ def export_bbox_pickle_raw(
             scale_x = RESIZE[0] / label_img.shape[1]
             scale_y = RESIZE[1] / label_img.shape[0]
         except FileNotFoundError as fnfe:
-            print(fnfe)
+            # print(fnfe)
             continue
 
         labels = np.unique(label_img)

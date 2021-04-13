@@ -73,7 +73,7 @@ class ScanReferDataset(Dataset):
 
         print("Number of samples before ignoring: ", len(self.sample_list))
         print("Number of samples after ignoring: ", len(self.verified_list))
-        print("Ignored keys: ", self.ignored_keys)
+        # print("Ignored keys: ", self.ignored_keys)
 
     def __len__(self):
         return len(self.verified_list)
@@ -95,7 +95,7 @@ class ScanReferDataset(Dataset):
             box_feats = np.array(db['boxfeat'][sample_id])
             object_ids = np.array(db['objectids'][sample_id])
             global_feat = np.array(db['globalfeat'][sample_id])
-            print("object_ids: ", object_ids.shape)
+
             target_idx = np.where(object_ids == int(target_id))[0]
             if target_idx.shape[0] == 1:
                 target_feat = np.concatenate((box_feats[target_idx], boxes[target_idx]), axis=1)

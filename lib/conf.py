@@ -135,8 +135,8 @@ def get_config(exp_type, dataset, viewpoint, box):
 
         if selected_viewpoint == 'estimated':
             assert selected_box_mode == 'votenet'
-            CONF.PATH.IMAGE = os.path.join(data_root, 'estimated-based/renders/')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'estimated-based/instance-masks/{}/{}.objectId.encoded.png')
+            CONF.PATH.IMAGE = os.path.join(data_root, 'projected-based/renders/')
+            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'projected-based/instance-masks/{}/{}.objectId.encoded.png')
             CONF.PATH.DB_PATH = os.path.join(data_root, 'test-based/db_estimated.h5')
             CONF.PATH.VOTENET_PROJECTIONS = os.path.join(data_root, 'estimated-based/predicted_viewpoints'
                                                                     '/votenet_estimated_viewpoint_val.json')

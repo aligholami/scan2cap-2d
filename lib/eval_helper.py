@@ -171,7 +171,7 @@ def eval_cap(_global_iter_id,
 
     if not os.path.exists(corpus_path):
         print("preparing corpus...")
-        corpus = prepare_corpus(dataset.verified_list, max_len)
+        corpus = prepare_corpus(dataset.sample_list, max_len)
         with open(corpus_path, "w") as f:
             json.dump(corpus, f, indent=4)
     else:
