@@ -5,17 +5,20 @@
 ### Step 1 - Download & Unzip the Required Files
 * Download the `hdf5` databaes for one of the following viewpoint types:
 
-1. Annotated Viewpoint Database:
-    * [ant.h5](https://www.google.com)
+1. Annotated Viewpoint Database (Oracle Boxes):
+    * [db_annotated.h5](https://mega.nz/file/eIR2CToR#795fMBvYjL9bOu4KaF5egbEn8UctsOtvrw-Rt1a5QUI)
 
-2. Estimated Viewpoint Database (3D-2D Backprojected)
-    * [est.h5](https://www.google.com)
+2. Annotated Viewpoint Database (MRCNN Detected Boxes):
+    * [db_annotated_mrcnn.h5](https://mega.nz/file/KcAW3J6R#r6HYeDbsa3_oWyvc3t3W4Z-xKvJ4r66i8nhYOIqLNXw
 
-3. Bird's Eye Viewpoint Database (Top-Down)
-    * [bev.h5](https://www.google.com)
+3. Estimated Viewpoint Database (3D-2D Backprojected)
+    * [est.h5](https://mega.nz/file/fdYEVTwa#tvoAc2bBreaqU2i4rHeLvk7Ywzltaj6XzXTWP9wbJj0)
+
+4. Bird's Eye Viewpoint Database (Top-Down)
+    * [bev.h5](https://mega.nz/file/SIB2QTSA#z0uEWi8vZpik6O-13vSSUJoSWVzUlRtfOWI4p2C11D4)
 
 * Download the ScanRefer `train` and `validation` splits:
-    * [scanrefer.zip](https://www.google.com)
+    * [scanrefer.zip](https://github.com/daveredrum/ScanRefer#dataset)
 
 
 and unzip the downloaded files to your desired location.
