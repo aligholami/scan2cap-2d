@@ -89,9 +89,8 @@ For the M2 and M2-RL results, please refer to the official [Meshed-Memory Transf
 
 | Experiment           | Command | CIDER | BLEU-4 | METEOR | ROUGLE-L
 |:----------------| :-----| :------| :------| :------| :------|
-| {G, A, -, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat='G' --folder exp1``| - | - | - | - | 
 | {G, A, -, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle  --visual_feat 'G' --model 'snt' --folder exp2 --ckpt_path path_to_snt_checkpoint.pth`` | 51.48 | 13.47 | 20.31 | 46.81 | 
-| {T, A, O, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'T' --folder exp3`` | - | - | - | - | 
+| {T, A, O, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'T' --folder exp3`` | 30.64 | 9.74 | 18.93 | 41.26 | 
 | {T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'TC' --model 'satnt' --folder exp4 --ckpt_path pretrained/ant_td_tc/model.pth`` | 42.22 | 14.24 | 20.02 | 48.51 | 
 | {G+T, A, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GT' --model 'snt' --folder exp5 --ckpt_path pretrained/ant_snt_gt/model.pth`` | 60.75 | 14.73 | 21.19 | 47.80 | 
 | {G+T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GTC' --model 'satnt' --folder exp6 --ckpt_path pretrained/ant_td_gtc/model.pth`` | 15.75 | 6.76 | 16.09 | 38.98 | 
