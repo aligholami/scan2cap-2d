@@ -2,6 +2,7 @@
 
 ## Setup
 
+
 ### Step 1 - Download & Unzip the Required Files
 * Download the `hdf5` databaes for one of the following viewpoint types:
 
@@ -45,6 +46,20 @@ where variables can take the following permutations:
 | scanrefer | estimated| votenet | Extracts votenet estimated bounding boxes, bounding box features and global features from estimated viewpoints. 
 | scanrefer | topdown | oracle | Extracts bird's eye view bounding boxes, bounding box features and global features from bird's eye viewpoints. 
 ---
+
+### Step 2 - Install Required Packages
+Code was tested with the following settings:
+```
+python==3.6.10
+cudatoolkit==10.0.130
+pytorch==1.2.0
+torchvision==0.4.0
+```
+To setup the enviroment, simply run the following:
+```
+conda create -n scan2cap2d --file conda_reqs.txt && 
+conda activate scan2cap2d && pip install -r pip_reqs.txt
+```
 
 ## Training and Evaluation
 Set the following paths in `scan2cap-2d/lib/conf.py` based on your needs:
