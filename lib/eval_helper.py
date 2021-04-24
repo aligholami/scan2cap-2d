@@ -174,7 +174,7 @@ def eval_cap(_global_iter_id,
 
     if not os.path.exists(corpus_path):
         print("preparing corpus...")
-        corpus = prepare_corpus(dataset.sample_list, max_len)
+        corpus = prepare_corpus(dataset.verified_list, max_len)
         with open(corpus_path, "w") as f:
             json.dump(corpus, f, indent=4)
     else:
@@ -201,11 +201,8 @@ def eval_cap(_global_iter_id,
         with open(os.path.join(run_config.PATH.OUTPUT_ROOT, folder, "extras_{}.json".format(phase)), "w") as f:
             json.dump(extras, f, indent=4)
 
-    # ###############################
     # compute scores
     print("computing scores...")
-    # candidates = remove_sos_eos(candidates)
-    # corpus = remove_sos_eos(corpus)
     bleu = capblue.Bleu(4).compute_score(corpus, candidates)
     cider = capcider.Cider().compute_score(corpus, candidates)
     rouge = caprouge.Rouge().compute_score(corpus, candidates)

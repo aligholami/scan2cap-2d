@@ -95,22 +95,17 @@ class ScanReferDataset(Dataset):
             box_feats = np.array(db['boxfeat'][sample_id])
             object_ids = np.array(db['objectids'][sample_id])
             global_feat = np.array(db['globalfeat'][sample_id])
-
             target_idx = np.where(object_ids == int(target_id))[0]
             if target_idx.shape[0] == 1:
                 target_feat = np.concatenate((box_feats[target_idx], boxes[target_idx]), axis=1)
-                boxes = np.delete(boxes, target_idx, axis=0)
-                pool_feats = np.delete(box_feats, target_idx, axis=0)
-                pool_feats = np.concatenate((pool_feats, boxes), axis=1)
-                pool_ids = np.delete(object_ids, target_idx, axis=0)
+                pool_feats = np.concatenate((box_feats, boxes), axis=1)
+                pool_ids = object_ids
 
             else:
                 random_idx = 0  # sorted samples in mrcnn mode
                 target_feat = np.concatenate((box_feats[random_idx][None, :], boxes[random_idx][None, :]), axis=1)
-                boxes = np.delete(boxes, random_idx, axis=0)
-                pool_feats = np.delete(box_feats, random_idx, axis=0)
-                pool_feats = np.concatenate((pool_feats, boxes), axis=1)
-                pool_ids = np.delete(object_ids, random_idx, axis=0)
+                pool_feats = np.concatenate((box_feats, boxes), axis=1)
+                pool_ids = object_ids
 
             ret = {
                 'failed': False,
