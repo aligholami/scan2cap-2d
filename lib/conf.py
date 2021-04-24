@@ -19,7 +19,7 @@ CONF.LABEL2CLASS = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, '
 
 CONF.PATH = EasyDict()
 CONF.PATH.DATA_ROOT = '/localscratch/gholami/scan2cap-data'
-CONF.PATH.CODE_ROOT = '~/gholami-projects/scan2cap-2d'
+CONF.PATH.CODE_ROOT = '/home/gholami/gholami-projects/scan2cap-2d'
 CONF.PATH.OUTPUT_ROOT = os.path.join(CONF.PATH.CODE_ROOT, "outputs")
 CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
