@@ -18,24 +18,21 @@ CONF.LABEL2CLASS = {'cabinet': 0, 'bed': 1, 'chair': 2, 'sofa': 3, 'table': 4, '
                     'refrigerator': 12, 'shower curtain': 13, 'toilet': 14, 'sink': 15, 'bathtub': 16, 'others': 17}
 
 CONF.PATH = EasyDict()
-CONF.PATH.DATA_ROOT = '/local-scratch/code/scan2cap_extracted'
-CONF.PATH.CODE_ROOT = '/local-scratch/projects/scan2cap-2d'
-CONF.PATH.OLD_DATA_ROOT = '/local-scratch/code/scan2cap_codebase/Scan2Cap/data'
+CONF.PATH.DATA_ROOT = '/localscratch/gholami/scan2cap-data'
+CONF.PATH.CODE_ROOT = '~/gholami-projects/scan2cap-2d'
 CONF.PATH.OUTPUT_ROOT = os.path.join(CONF.PATH.CODE_ROOT, "outputs")
 CONF.PATH.SCANNET_DIR = "/datasets/released/scannet/public/v2"
 CONF.PATH.SCANS_DIR = os.path.join(CONF.PATH.SCANNET_DIR, "scans")
 CONF.PATH.AGGR_JSON = os.path.join(CONF.PATH.SCANS_DIR, "{}/{}_vh_clean.aggregation.json")  # scene_id, scene_id
 CONF.PATH.SCANNET_V2_TSV = os.path.join(CONF.PATH.SCANNET_DIR, 'scannet-labels.combined.tsv')
-CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ScanRefer_filtered_train.json')
-CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ScanRefer_filtered_val.json')
-CONF.PATH.IGNORED_SAMPLES = os.path.join(CONF.PATH.DATA_ROOT, 'common/scanrefer/ScanRefer/ignored_renders.json')
+CONF.PATH.SCANREFER_TRAIN = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer/ScanRefer_filtered_train.json')
+CONF.PATH.SCANREFER_VAL = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer/ScanRefer_filtered_val.json')
+CONF.PATH.IGNORED_SAMPLES = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer/ignored_renders.json')
 
-CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary.json')
-CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
-CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.OLD_DATA_ROOT, 'glove.p')
+CONF.PATH.SCANREFER_VOCAB = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary.json')
+CONF.PATH.SCANREFER_VOCAB_WEIGHTS = os.path.join(CONF.PATH.DATA_ROOT, 'ScanRefer_vocabulary_weights.json')
+CONF.PATH.GLOVE_PICKLE = os.path.join(CONF.PATH.DATA_ROOT, 'glove.p')
 
-
-#########################
 
 def adapt_sample_keys(sample_list, key_type):
     """
@@ -115,11 +112,10 @@ def get_config(exp_type, dataset, viewpoint, box):
     data_root = CONF.PATH.DATA_ROOT
     code_root = CONF.PATH.CODE_ROOT
     output_root = CONF.PATH.OUTPUT_ROOT
-
     if selected_dataset == 'scanrefer':
         if selected_viewpoint == 'annotated':
             CONF.PATH.IMAGE = os.path.join(data_root, 'render-based/renders/')
-            ORACLE_DB_PATH = os.path.join(data_root, 'tatt-based/db_annotated.h5')
+            ORACLE_DB_PATH = os.path.join(data_root, 'db_annotated.h5')
             if selected_box_mode == 'oracle':
                 CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'render-based/instance-masks/{}/{}.objectId.encoded.png')
                 CONF.PATH.DB_PATH = ORACLE_DB_PATH
@@ -128,7 +124,7 @@ def get_config(exp_type, dataset, viewpoint, box):
 
             if selected_box_mode == 'mrcnn':
                 CONF.PATH.MRCNN_DETECTIONS_PATH = os.path.join(data_root, 'coco_instances_results.json')
-                CONF.PATH.DB_PATH = os.path.join(data_root, 'mrcnn-based/db_annotated_mrcnn.h5')
+                CONF.PATH.DB_PATH = os.path.join(data_root, 'db_annotated_mrcnn.h5')
                 CONF.PATH.GT_DB_PATH = ORACLE_DB_PATH
                 CONF.TYPES.KEY_TYPE = 'kkk'
                 CONF.TYPES.KEY_FORMAT = '{}-{}_{}'
@@ -137,7 +133,7 @@ def get_config(exp_type, dataset, viewpoint, box):
             assert selected_box_mode == 'votenet'
             CONF.PATH.IMAGE = os.path.join(data_root, 'projected-based/renders/')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'projected-based/instance-masks/{}/{}.objectId.encoded.png')
-            CONF.PATH.DB_PATH = os.path.join(data_root, 'test-based/db_estimated.h5')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'db_estimated.h5')
             CONF.PATH.VOTENET_PROJECTIONS = os.path.join(data_root, 'estimated-based/predicted_viewpoints'
                                                                     '/votenet_estimated_viewpoint_val.json')
             CONF.TYPES.KEY_TYPE = 'kk'
@@ -147,17 +143,9 @@ def get_config(exp_type, dataset, viewpoint, box):
             assert selected_box_mode == 'oracle'
             CONF.PATH.IMAGE = os.path.join(data_root, 'topdown-based/renders/')
             CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'topdown-based/instance-masks/{}/{}.vertexAttribute.encoded.png')
-            CONF.PATH.DB_PATH = os.path.join(data_root, 'td-based/db_td.h5')
+            CONF.PATH.DB_PATH = os.path.join(data_root, 'db_td.h5')
             CONF.TYPES.KEY_TYPE = 'k'
             CONF.TYPES.KEY_FORMAT = '{}'
-
-    if selected_dataset == 'referit':
-        if selected_viewpoint == 'annotated':
-            CONF.PATH.IMAGE = os.path.join(data_root, 'referit-based/renders/')
-            CONF.PATH.INSTANCE_MASK = os.path.join(data_root, 'referit-based/instance-masks')
-            CONF.PATH.DB_PATH = os.path.join(data_root, 'referit-based/db_referit.h5')
-            CONF.TYPES.KEY_TYPE = 'kk'
-            CONF.TYPES.KEY_FORMAT = '{}-{}'
 
     return CONF
 

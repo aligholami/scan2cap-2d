@@ -6,25 +6,27 @@
 * Download the `hdf5` databaes for one of the following viewpoint types:
 
 1. Annotated Viewpoint Database (Oracle Boxes):
-    * [db_annotated.h5](https://mega.nz/file/eIR2CToR#795fMBvYjL9bOu4KaF5egbEn8UctsOtvrw-Rt1a5QUI)
-
+    * [db_annotated.h5](https://mega.nz/file/eIR2CToR#795fMBvYjL9bOu4KaF5egbEn8UctsOtvrw-Rt1a5QUI) (~3GB)
+    
 2. Annotated Viewpoint Database (MRCNN Detected Boxes):
-    * [db_annotated_mrcnn.h5](https://mega.nz/file/KcAW3J6R#r6HYeDbsa3_oWyvc3t3W4Z-xKvJ4r66i8nhYOIqLNXw
+    * [db_annotated_mrcnn.h5](https://mega.nz/file/KcAW3J6R#r6HYeDbsa3_oWyvc3t3W4Z-xKvJ4r66i8nhYOIqLNXw) (~0.5GB)
 
 3. Estimated Viewpoint Database (3D-2D Backprojected)
-    * [est.h5](https://mega.nz/file/fdYEVTwa#tvoAc2bBreaqU2i4rHeLvk7Ywzltaj6XzXTWP9wbJj0)
+    * [db_estimated.h5](https://mega.nz/file/fdYEVTwa#tvoAc2bBreaqU2i4rHeLvk7Ywzltaj6XzXTWP9wbJj0) (~2.5GB)
 
 4. Bird's Eye Viewpoint Database (Top-Down)
-    * [bev.h5](https://mega.nz/file/SIB2QTSA#z0uEWi8vZpik6O-13vSSUJoSWVzUlRtfOWI4p2C11D4)
+    * [db_td.h5](https://mega.nz/file/SIB2QTSA#z0uEWi8vZpik6O-13vSSUJoSWVzUlRtfOWI4p2C11D4) (~11GB)
 
 * Download the ScanRefer `train` and `validation` splits:
-    * [scanrefer.zip](https://github.com/daveredrum/ScanRefer#dataset)
+    * [ScanRefer Download](https://github.com/daveredrum/ScanRefer#dataset)
+
 
 
 and unzip the downloaded files to your desired location.
 Each database contains `global features`, `object features`, `object bounding box`, `semantic label` and `object id` corresponding to each sample in the desired `ScanRefer` split. 
 
-Alternatively, you can manually render color and instance masks and use the code provided in `preprocessing` to obtain these databases. Here is a quick guide on how to use `preprocessing` module:
+### Optional - Prepare Databases from Scratch
+Alternatively, you can manually render color and instance masks and use the code provided in `preprocessing` to obtain these databases. Make sure to set `IMAGE` and `INSTANCE_MASK` paths in the `conf.py` file. Here is a quick guide on how to use `preprocessing` module:
 
 ```
 python main.py --prep --exp_type $ET --dataset $DS --viewpoint $VP --box $BX
@@ -77,3 +79,28 @@ other options include:
 python main.py --eval --exp_type $ET --dataset $DS --viewpoint $VP --box $BX --folder $EN
 ```
 where `$EN` is the experiment directory name.
+
+---
+## Reproducing the results
+Here is a set of experiments reported in the Scan2Cap paper and the commands to reproduce them. Please refer to table 6 and 8 in our paper for experiment names:
+https://arxiv.org/pdf/2012.02206.pdf.
+
+For the M2 and M2-RL results, please refer to the official [Meshed-Memory Transformer](https://github.com/aimagelab/meshed-memory-transformer).
+
+| Experiment           | Command
+|:----------------| :-----|
+| {G, A, -, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat='G' --folder desired_experiment_name``|
+| {G, A, -, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle  --visual_feat 'G' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
+| {T, A, O, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'T' --folder desired_experiment_name``
+| {T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {G+T, A, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
+| {G+T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {G+T, A, 2DM, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
+| {G+T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {G+T, A, 3DV, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
+| {G+T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
+| {G, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'G' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_bev_s&t_checkpoint.pth``
+| {G+T, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_bev_s&t_checkpoint.pth``
+---

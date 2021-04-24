@@ -11,7 +11,7 @@ from models.tdbu import ShowAttendAndTell
 from models.retr import Retrieval2D
 from lib.conf import get_config, get_samples, verify_visual_feat
 from lib.eval_helper import eval_cap
-
+import h5py
 
 def get_dataloader(batch_size, num_workers, shuffle, sample_list, scene_list, run_config, split):
     dataset = ScanReferDataset(
@@ -98,14 +98,19 @@ def get_retrieval_model(args, run_config, train_dataset):
 
     feat_size = run_config.TARGET_FEATURE_SIZE - 4
     train_scene_list = train_dataset.scene_list
-    scanrefer_box_features = np.load(run_config.PATH.BOX_FEAT, allow_pickle=True).item()
+    scanrefer = h5py.File(run_config.PATH.DB_PATH, 'r')
+    scanrefer_box_features = scanrefer['boxfeat']
+    scanrefer_oids = scanrefer['objectids']
     # only take features that are in the train set and describe the target object.
     ordered_train_feature_matrix = []
-    for sample_id, sample_dict in scanrefer_box_features.items():
-        for object_id, object_feature in sample_dict.items():
-            k = sample_id
-            if k.split('-')[0] in train_scene_list and k.split('-')[1].split('_')[0] == object_id:
-                ordered_train_feature_matrix.append((k, object_feature.reshape(-1, feat_size)))
+
+    for sample_id, v in scanrefer_box_features.items():
+        if sample_id.split('-')[0] in train_scene_list:
+            target_object_id = int(sample_id.split('-')[1].split('_')[0])
+            object_ids = np.array(scanrefer_oids[sample_id])
+            target_idx = np.where(object_ids == int(target_object_id))[0]
+            object_feature = np.array(v)[target_idx, :].reshape(-1, feat_size)
+            ordered_train_feature_matrix.append((sample_id, object_feature))
 
     ordered_train_feature_matrix = OrderedDict(ordered_train_feature_matrix)
 
