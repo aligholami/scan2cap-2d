@@ -215,6 +215,10 @@ def export_bbox_pickle_coco(
         categories = []
         object_ids = []
         for object_id, d in enumerate(detections):
+            # RESIZE [0] -> Width
+            # RESIZE [1] -> Height
+            # d['segmentation']['size'][1] -> Width
+            # d['segmentation']['size'][0] -> Height
             scale_x = RESIZE[0] / d['segmentation']['size'][1]
             scale_y = RESIZE[1] / d['segmentation']['size'][0]
             scaled_box = [math.floor(scale_x * d['bbox'][0]), math.floor(scale_y * d['bbox'][1]), math.ceil(scale_x * d['bbox'][2]) - 1, math.ceil(scale_y * d['bbox'][3]) - 1]
