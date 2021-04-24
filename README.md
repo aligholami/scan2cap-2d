@@ -20,7 +20,12 @@
 * Download the ScanRefer `train` and `validation` splits:
     * [ScanRefer Download](https://github.com/daveredrum/ScanRefer#dataset)
 
+* Download the vocabulary, glove embeddings and word weights:
+    * [glove.p](https://mega.nz/file/KNQ3HaZK#lw00WZLklEna5d5Ru-V0Wre3_zz6tcGM9Thhr5NDwAs)
+    * [ScanRefer_vocabulary.json](https://mega.nz/file/3AIBlChB#l2Q0bcl03K0Ooe6W60DecRUnWWUHltZPxQQbHo40iKY)
+    * [ScanRefer_vocabulary_weights.json](https://mega.nz/file/qJY3gYaR#2YgGmNJTdvIqUoO3d3wDzwdd_TZxPRJgDzyC46d9BEU)
 
+* Pre-trained models: https://mega.nz/folder/PJARTYJC#JhlUw3zagS9ck402_5TyRw
 
 and unzip the downloaded files to your desired location.
 Each database contains `global features`, `object features`, `object bounding box`, `semantic label` and `object id` corresponding to each sample in the desired `ScanRefer` split. 
