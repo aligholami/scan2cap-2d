@@ -57,8 +57,8 @@ torchvision==0.4.0
 ```
 To setup the enviroment, simply run the following:
 ```
-conda create -n scan2cap2d --file conda_reqs.txt && 
-conda activate scan2cap2d && pip install -r pip_reqs.txt
+conda create -n scan2cap2d --file reqs_conda.txt && 
+conda activate scan2cap2d && pip install -r reqs_pip.txt
 ```
 
 ## Training and Evaluation
