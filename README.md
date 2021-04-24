@@ -87,20 +87,20 @@ https://arxiv.org/pdf/2012.02206.pdf.
 
 For the M2 and M2-RL results, please refer to the official [Meshed-Memory Transformer](https://github.com/aimagelab/meshed-memory-transformer).
 
-| Experiment           | Command
-|:----------------| :-----|
-| {G, A, -, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat='G' --folder desired_experiment_name``|
-| {G, A, -, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle  --visual_feat 'G' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
-| {T, A, O, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'T' --folder desired_experiment_name``
-| {T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {G+T, A, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
-| {G+T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {G+T, A, 2DM, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
-| {G+T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'TC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {G+T, A, 3DV, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_snt_checkpoint.pth``
-| {G+T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GTC' --model 'td' --folder desired_experiment_name --ckpt_path path_to_td_checkpoint.pth``
-| {G, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'G' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_bev_s&t_checkpoint.pth``
-| {G+T, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'GT' --model 'snt' --folder desired_experiment_name --ckpt_path path_to_bev_s&t_checkpoint.pth``
+| Experiment           | Command | CIDER | BLEU-4 | METEOR | ROUGLE-L
+|:----------------| :-----| :------| :------| :------| :------|
+| {G, A, -, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat='G' --folder exp1``| - | - | - | - | 
+| {G, A, -, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle  --visual_feat 'G' --model 'snt' --folder exp2 --ckpt_path path_to_snt_checkpoint.pth`` | 51.48 | 13.47 | 20.31 | 46.81 | 
+| {T, A, O, Retr} | ``python main.py --eval --exp_type ret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'T' --folder exp3`` | - | - | - | - | 
+| {T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'TC' --model 'satnt' --folder exp4 --ckpt_path pretrained/ant_td_tc/model.pth`` | 42.22 | 14.24 | 20.02 | 48.51 | 
+| {G+T, A, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GT' --model 'snt' --folder exp5 --ckpt_path pretrained/ant_snt_gt/model.pth`` | 60.75 | 14.73 | 21.19 | 47.80 | 
+| {G+T+C, A, O, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box oracle --visual_feat 'GTC' --model 'satnt' --folder exp6 --ckpt_path pretrained/ant_td_gtc/model.pth`` | 15.75 | 6.76 | 16.09 | 38.98 | 
+| {T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'TC' --model 'satnt' --folder exp7 --ckpt_path pretrained/ant_td_tc/model.pth`` | - | - | - | - | 
+| {G+T, A, 2DM, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GT' --model 'snt' --folder exp8 --ckpt_path path_to_snt_checkpoint.pth`` | - | - | - | - | 
+| {G+T+C, A, 2DM, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box mrcnn --visual_feat 'GTC' --model 'satnt' --folder exp9 --ckpt_path path_to_td_checkpoint.pth`` | - | - | - | - | 
+| {T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'TC' --model 'satnt' --folder exp10 --ckpt_path path_to_td_checkpoint.pth`` | - | - | - | - | 
+| {G+T, A, 3DV, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GT' --model 'snt' --folder exp11 --ckpt_path path_to_snt_checkpoint.pth`` | - | - | - | - | 
+| {G+T+C, A, 3DV, TD} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint annotated --box votenet --visual_feat 'GTC' --model 'satnt' --folder exp12 --ckpt_path path_to_td_checkpoint.pth`` | - | - | - | - | 
+| {G, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'G' --model 'snt' --folder exp13 --ckpt_path path_to_bev_s&t_checkpoint.pth`` | - | - | - | - | 
+| {G+T, BEV, O, S&T} | ``python main.py --eval --exp_type nret --dataset scanrefer --viewpoint bev --box oracle --visual_feat 'GT' --model 'snt' --folder exp14 --ckpt_path path_to_bev_s&t_checkpoint.pth`` | - | - | - | - | 
 ---
